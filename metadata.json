@@ -1,0 +1,6 @@
+{
+  "name": "Mero Boutique",
+  "description": "Luxury Egyptian artisanal fashion boutique featuring handcrafted embroidery, bespoke custom designs, verified catalog, guest checkout, and administrative dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
