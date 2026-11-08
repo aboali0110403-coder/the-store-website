@@ -240,10 +240,20 @@ export default function Shop() {
               <div className="product-grid">
                 {filteredProducts.map((product) => {
                   const wish = isWishlisted(product.id);
+                  const isStockControlled =
+                    product.production === 'ready' || product.production === 'limited';
+                  const isSoldOut = isStockControlled && product.stock <= 0;
+
                   return (
                     <article key={product.id} className="product-card">
                       <div className="product-image-wrap">
-                        {product.badge && <span className="product-badge">{product.badge}</span>}
+                        {isSoldOut ? (
+                          <span className="product-badge" style={{ background: '#a34d55' }}>
+                            {isAr ? 'نفدت الكمية' : 'Out of Stock'}
+                          </span>
+                        ) : product.badge ? (
+                          <span className="product-badge">{product.badge}</span>
+                        ) : null}
                         <button
                           type="button"
                           className={`wishlist-button ${wish ? 'is-saved' : ''}`}
@@ -269,16 +279,25 @@ export default function Shop() {
                           </h3>
                           <button
                             type="button"
-                            className="add-mini"
-                            onClick={() =>
+                            className={`add-mini ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            disabled={isSoldOut}
+                            onClick={() => {
+                              if (isSoldOut) return;
                               addToBag(
                                 product.id,
                                 product.sizes[0] || 'Standard',
                                 product.colors[0] || 'Signature',
                                 1
-                              )
+                              );
+                            }}
+                            aria-label={
+                              isSoldOut
+                                ? isAr
+                                  ? 'نفدت الكمية'
+                                  : 'Out of Stock'
+                                : `Add ${product.name} to bag`
                             }
-                            aria-label={`Add ${product.name} to bag`}
+                            title={isSoldOut ? (isAr ? 'نفدت الكمية' : 'Out of Stock') : undefined}
                           >
                             <Plus size={15} />
                           </button>
@@ -286,14 +305,32 @@ export default function Shop() {
                         <p>{isAr ? product.categoryAr : product.category}</p>
                         <div className="product-meta">
                           <strong>{formatEGP(product.price, language)}</strong>
-                          <span className="text-[11px] text-[#806f77]">
-                            {product.production === 'ready'
+                          <span
+                            className={`text-[11px] ${
+                              isSoldOut
+                                ? 'text-[#a34d55] font-semibold'
+                                : product.production === 'ready'
+                                ? 'text-[#567c4b]'
+                                : product.production === 'limited'
+                                ? 'text-[#806f77] font-medium'
+                                : 'text-[#c4a46d]'
+                            }`}
+                          >
+                            {isSoldOut
+                              ? isAr
+                                ? 'نفدت الكمية'
+                                : 'Out of Stock'
+                              : product.production === 'ready'
                               ? isAr
                                 ? 'جاهز للشحن'
                                 : 'Ready'
+                              : product.production === 'limited'
+                              ? isAr
+                                ? 'إصدار محدود'
+                                : 'Limited'
                               : isAr
-                              ? 'تنفيذ يدوي'
-                              : 'Bespoke'}
+                              ? 'يُنفّذ حسب الطلب'
+                              : 'Made to Order'}
                           </span>
                         </div>
                       </div>

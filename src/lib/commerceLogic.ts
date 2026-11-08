@@ -106,9 +106,12 @@ export function validateStockAvailability(
       errors.push(`Product "${item.productId}" is not currently published.`);
       continue;
     }
-    if (product.production_type === 'ready' && product.stock < item.quantity) {
+    if (
+      (product.production_type === 'ready' || product.production_type === 'limited') &&
+      product.stock < item.quantity
+    ) {
       errors.push(
-        `Insufficient stock for product. Requested: ${item.quantity}, Available: ${product.stock}.`
+        `Insufficient stock for product "${product.id}". Requested: ${item.quantity}, Available: ${product.stock}.`
       );
     }
   }

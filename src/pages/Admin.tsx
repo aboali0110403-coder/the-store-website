@@ -18,6 +18,8 @@ import {
   DollarSign,
   ChevronDown,
   ChevronUp,
+  Upload,
+  X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useBoutique } from '../components/SiteShell';
@@ -39,6 +41,7 @@ import {
   adminUpdateOrderStatus,
   adminGetCustomDesignRequests,
   adminUpdateCustomDesignStatus,
+  uploadProductImage,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
 
@@ -134,6 +137,65 @@ export default function Admin() {
   });
 
   const [orderStatusNotes, setOrderStatusNotes] = useState<Record<string, string>>({});
+
+  // Image Upload state
+  const [primaryImageUploading, setPrimaryImageUploading] = useState(false);
+  const [primaryImageError, setPrimaryImageError] = useState('');
+  const [useManualImageUrl, setUseManualImageUrl] = useState(false);
+  const [galleryImageUploading, setGalleryImageUploading] = useState(false);
+  const [galleryImageError, setGalleryImageError] = useState('');
+
+  const handlePrimaryImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPrimaryImageError('');
+    setPrimaryImageUploading(true);
+
+    try {
+      const res = await uploadProductImage(file, productForm.id || productForm.slug);
+      setProductForm((prev) => ({
+        ...prev,
+        image_url: res.url,
+      }));
+      setStatusMessage(isAr ? 'تم رفع صورة المنتج بنجاح إلى وحدة التخزين.' : 'Product image uploaded to storage.');
+    } catch (err: any) {
+      setPrimaryImageError(err?.message || (isAr ? 'فشل رفع الصورة.' : 'Image upload failed.'));
+    } finally {
+      setPrimaryImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePrimaryImage = () => {
+    setProductForm((prev) => ({
+      ...prev,
+      image_url: '',
+    }));
+    setPrimaryImageError('');
+  };
+
+  const handleGalleryImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGalleryImageError('');
+    setGalleryImageUploading(true);
+
+    try {
+      const res = await uploadProductImage(file, selectedProductId);
+      setGalleryForm((prev) => ({
+        ...prev,
+        image_url: res.url,
+      }));
+      setStatusMessage(isAr ? 'تم رفع صورة المعرض بنجاح إلى وحدة التخزين.' : 'Gallery photo uploaded to storage.');
+    } catch (err: any) {
+      setGalleryImageError(err?.message || (isAr ? 'فشل رفع الصورة.' : 'Image upload failed.'));
+    } finally {
+      setGalleryImageUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Verify authentication and admin authorization
   const verifyAccess = useCallback(async (userSession: any) => {
@@ -257,6 +319,18 @@ export default function Admin() {
     setStatusMessage('');
 
     try {
+      const requiresInventory =
+        productForm.production_type === 'ready' || productForm.production_type === 'limited';
+      const parsedStock = requiresInventory ? Math.max(0, parseInt(productForm.stock || '0', 10)) : 0;
+
+      if (requiresInventory && (isNaN(parsedStock) || parsedStock < 0)) {
+        throw new Error(
+          isAr
+            ? 'يرجى إدخال كمية مخزون صحيحة (صفر أو أكثر) للمنتجات الجاهزة أو الإصدار المحدود.'
+            : 'Please enter a valid non-negative stock quantity for ready or limited edition products.'
+        );
+      }
+
       const payload: any = {
         slug: productForm.slug.trim(),
         name_en: productForm.name_en.trim(),
@@ -272,11 +346,11 @@ export default function Admin() {
         price_egp: Number(productForm.price_egp),
         compare_at_egp: productForm.compare_at_egp ? Number(productForm.compare_at_egp) : null,
         image_url: productForm.image_url,
-        image_alt: productForm.image_alt,
+        image_alt: productForm.image_alt || productForm.name_en,
         production_type: productForm.production_type,
         sizes: productForm.sizes.split(',').map((x) => x.trim()).filter(Boolean),
         colors: productForm.colors.split(',').map((x) => x.trim()).filter(Boolean),
-        stock: Number(productForm.stock),
+        stock: parsedStock,
         is_published: productForm.is_published,
         is_featured: productForm.is_featured,
         updated_at: new Date().toISOString(),
@@ -758,32 +832,58 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Stock Quantity *</span>
-                  <input
-                    type="number"
-                    required
-                    value={productForm.stock}
-                    onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
-                  />
-                </label>
-
-                <label className="mero-field">
-                  <span>Production Type</span>
+                  <span>{isAr ? 'نوع الإنتاج والتنفيذ *' : 'Production Type *'}</span>
                   <select
                     value={productForm.production_type}
                     onChange={(e) => setProductForm({ ...productForm, production_type: e.target.value })}
                   >
-                    <option value="ready">Ready Stock (جاهز للشحن)</option>
-                    <option value="made_to_order">Made to Order (تنفيذ يدوي)</option>
-                    <option value="limited">Limited Edition (إصدار محدود)</option>
+                    <option value="ready">
+                      {isAr ? 'جاهز للشحن الفوري (يتطلب مخزون)' : 'Ready Stock (Inventory tracked)'}
+                    </option>
+                    <option value="made_to_order">
+                      {isAr ? 'يُنفّذ حسب الطلب (بدون جرد مخزون)' : 'Made to Order (No stock required)'}
+                    </option>
+                    <option value="limited">
+                      {isAr ? 'إصدار محدود حصري (يتطلب مخزون)' : 'Limited Edition (Inventory tracked)'}
+                    </option>
                   </select>
                 </label>
+
+                {/* Stock Quantity - shown only when product type requires inventory */}
+                {productForm.production_type !== 'made_to_order' ? (
+                  <label className="mero-field">
+                    <span>
+                      {isAr ? 'كمية المخزون المتاحة *' : 'Available Stock Quantity *'}
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      required
+                      value={productForm.stock}
+                      onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
+                      placeholder="5"
+                    />
+                  </label>
+                ) : (
+                  <div className="mero-field bg-[#f5efec] p-3 border border-[rgba(73,52,63,0.15)] flex flex-col justify-center">
+                    <span className="text-xs font-semibold text-[#49343f]">
+                      {isAr ? 'معلومة المخزون' : 'Inventory Note'}
+                    </span>
+                    <p className="text-[11px] text-[#806f77] mt-0.5 leading-snug">
+                      {isAr
+                        ? 'القطع المصنوعة حسب الطلب لا تعتمد على رصيد مادي بالمخزن؛ ويمكن للعملاء طلبها في أي وقت.'
+                        : 'Made-to-order garments are tailored upon request and do not depend on physical inventory.'}
+                    </p>
+                  </div>
+                )}
 
                 <label className="mero-field">
                   <span>Sizes (Comma separated)</span>
                   <input
                     value={productForm.sizes}
                     onChange={(e) => setProductForm({ ...productForm, sizes: e.target.value })}
+                    placeholder="S, M, L, 54, 56"
                   />
                 </label>
 
@@ -792,16 +892,107 @@ export default function Admin() {
                   <input
                     value={productForm.colors}
                     onChange={(e) => setProductForm({ ...productForm, colors: e.target.value })}
+                    placeholder="Dusty Rose, Antique Ivory"
                   />
                 </label>
+              </div>
 
-                <label className="mero-field">
-                  <span>Primary Image URL</span>
-                  <input
-                    value={productForm.image_url}
-                    onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                  />
-                </label>
+              {/* Primary Image Upload & Preview Container */}
+              <div className="border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] p-4 my-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-[#49343f] uppercase tracking-wider">
+                    {isAr ? 'صورة المنتج الرئيسية (Supabase Storage)' : 'Primary Product Image'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setUseManualImageUrl(!useManualImageUrl)}
+                    className="text-[11px] text-[#49343f] underline"
+                  >
+                    {useManualImageUrl
+                      ? isAr
+                        ? 'التبديل إلى رفع ملف من الجهاز'
+                        : 'Switch to device upload'
+                      : isAr
+                      ? 'إدخال رابط مباشر بدلاً من الرفع'
+                      : 'Enter direct image URL instead'}
+                  </button>
+                </div>
+
+                {primaryImageError && (
+                  <div className="mero-error text-xs mb-2">{primaryImageError}</div>
+                )}
+
+                {/* Device Upload Mode */}
+                {!useManualImageUrl ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <label className="outline-button text-xs cursor-pointer flex items-center gap-1.5 px-3 py-2">
+                        <Upload size={14} />
+                        <span>
+                          {primaryImageUploading
+                            ? isAr
+                              ? 'جارٍ الرفع إلى التخزين…'
+                              : 'Uploading to Storage…'
+                            : productForm.image_url
+                            ? isAr
+                              ? 'استبدال الصورة من الجهاز'
+                              : 'Replace image from device'
+                            : isAr
+                            ? 'رفع صورة من جهازكِ'
+                            : 'Upload image from device'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={handlePrimaryImageFile}
+                          disabled={primaryImageUploading}
+                        />
+                      </label>
+                      <span className="text-[11px] text-[#806f77]">
+                        {isAr ? 'الصيغ المدعومة: JPEG, PNG, WebP (بحد أقصى ٥ ميجابايت)' : 'JPEG, PNG, WebP (Max 5 MB)'}
+                      </span>
+                    </div>
+
+                    {/* Image Preview & Details */}
+                    {productForm.image_url && (
+                      <div className="flex items-center gap-3 bg-white p-2.5 border border-[rgba(73,52,63,0.15)] mt-1">
+                        <img
+                          src={productForm.image_url}
+                          alt="Product preview"
+                          className="w-16 h-16 object-cover border border-[rgba(73,52,63,0.2)]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium text-[#49343f] block truncate">
+                            {productForm.image_url}
+                          </span>
+                          <span className="text-[10px] text-[#567c4b]">
+                            {isAr ? '✓ الصورة جاهزة ومحفوظة بالمعاينة' : '✓ Image ready for product record'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemovePrimaryImage}
+                          className="text-[#a34d55] text-xs flex items-center gap-1 hover:underline px-2 py-1"
+                          title={isAr ? 'إزالة الصورة' : 'Remove image'}
+                        >
+                          <X size={13} />
+                          <span>{isAr ? 'إزالة' : 'Remove'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <label className="mero-field">
+                    <span>{isAr ? 'رابط الصورة المباشر' : 'Direct Image URL'}</span>
+                    <input
+                      type="url"
+                      placeholder="https://.../photo.webp"
+                      value={productForm.image_url}
+                      onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="mero-form-grid">
@@ -940,6 +1131,38 @@ export default function Admin() {
                   <h3 className="font-semibold text-sm mb-3">
                     {isAr ? `إضافة صورة إلى: ${activeProduct.name_en}` : `Add Photo to: ${activeProduct.name_en}`}
                   </h3>
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <label className="outline-button text-xs cursor-pointer flex items-center gap-1.5 px-3 py-2">
+                      <Upload size={14} />
+                      <span>
+                        {galleryImageUploading
+                          ? isAr
+                            ? 'جارٍ الرفع إلى التخزين…'
+                            : 'Uploading photo…'
+                          : isAr
+                          ? 'رفع صورة المعرض من جهازكِ'
+                          : 'Upload gallery photo from device'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={handleGalleryImageFile}
+                        disabled={galleryImageUploading}
+                      />
+                    </label>
+                    <span className="text-[11px] text-[#806f77]">
+                      {isAr
+                        ? 'أو إدخال الرابط يدوياً أدناه (JPEG, PNG, WebP ≤ 5MB)'
+                        : 'Or type image URL below (JPEG, PNG, WebP ≤ 5MB)'}
+                    </span>
+                  </div>
+
+                  {galleryImageError && (
+                    <div className="mero-error text-xs mb-3">{galleryImageError}</div>
+                  )}
+
                   <div className="mero-form-grid">
                     <label className="mero-field">
                       <span>Image URL *</span>

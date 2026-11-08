@@ -820,58 +820,184 @@ export function getCustomerOrders(): Order[] {
 }
 
 /**
- * Public-facing Order Status Lookup function.
- * Allows customers to track order progress by entering their order number.
- * Enforces rate limiting and queries local session/customer orders + sample atelier orders.
+ * Direct file upload for product images to Supabase Storage ('product-images' bucket).
+ * Validates JPEG, PNG, WebP and enforces 5MB limit.
  */
-export async function lookupPublicOrder(rawOrderNumber: string): Promise<Order | null> {
+export async function uploadProductImage(
+  file: File,
+  productId?: string
+): Promise<{ url: string; path: string }> {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Invalid file format. Only JPEG, PNG, and WebP images are allowed.');
+  }
+
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_SIZE) {
+    throw new Error('File size exceeds the 5 MB maximum limit.');
+  }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
+  const cleanName = file.name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+  const path = `${productId ? `prod_${productId}` : 'products'}/${Date.now()}_${cleanName}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('product-images')
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Upload to storage failed: ${uploadError.message}`);
+  }
+
+  const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+  return {
+    url: data.publicUrl,
+    path,
+  };
+}
+
+/**
+ * Direct file upload for customer custom design reference images ('design-references' bucket).
+ * Validates JPEG, PNG, WebP and enforces 5MB limit.
+ */
+export async function uploadDesignReferenceImage(
+  file: File
+): Promise<{ url: string; path: string }> {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error('Invalid file format. Only JPEG, PNG, and WebP images are allowed.');
+  }
+
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+  if (file.size > MAX_SIZE) {
+    throw new Error('File size exceeds the 5 MB maximum limit.');
+  }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
+  const path = `references/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('design-references')
+    .upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(`Reference image upload failed: ${uploadError.message}`);
+  }
+
+  const { data } = supabase.storage.from('design-references').getPublicUrl(path);
+  return {
+    url: data.publicUrl || path,
+    path,
+  };
+}
+
+/**
+ * Delete image from Supabase storage bucket
+ */
+export async function deleteStorageFile(
+  bucket: 'product-images' | 'design-references',
+  path: string
+): Promise<void> {
+  try {
+    await supabase.storage.from(bucket).remove([path]);
+  } catch (err) {
+    console.warn(`Could not delete storage file ${path}:`, err);
+  }
+}
+
+/**
+ * Public-facing Order Status Lookup function.
+ * Queries Supabase database directly via lookup_public_order RPC.
+ * Enforces rate limiting and strictly retrieves live database records.
+ * NEVER returns hardcoded demo orders in production.
+ */
+export async function lookupPublicOrder(
+  rawOrderNumber: string,
+  phoneVerification?: string
+): Promise<Order | null> {
   const cleanNumber = (rawOrderNumber || '').trim().toUpperCase();
   if (!cleanNumber) return null;
 
   // Rate-limiting check to prevent automated scraping of customer orders
-  const rateLimit = checkGuestRateLimit(`order_lookup_${cleanNumber}`, 15, 5 * 60 * 1000);
+  const rateLimit = checkGuestRateLimit(`order_lookup_${cleanNumber}`, 20, 5 * 60 * 1000);
   if (!rateLimit.allowed) {
     throw new Error(
       `Rate limit exceeded. Please wait ${rateLimit.retryAfterSeconds}s before looking up again.`
     );
   }
 
-  // 1. Check local customer orders placed on this device
-  const customerOrders = getCustomerOrders();
-  const localMatch = customerOrders.find(
-    (o) => o.order_number.toUpperCase() === cleanNumber || o.id === cleanNumber
-  );
-  if (localMatch) {
-    return localMatch;
+  // 1. Primary: Live database lookup via public secure RPC
+  try {
+    const { data, error } = await supabase.rpc('lookup_public_order', {
+      p_order_number: cleanNumber,
+      p_phone: phoneVerification ? phoneVerification.trim() : null,
+    });
+
+    if (!error && data) {
+      const orderData = typeof data === 'string' ? JSON.parse(data) : data;
+      if (orderData && orderData.order_number) {
+        // Sync latest status to customer orders storage if this device previously placed it
+        try {
+          const currentLocal = getCustomerOrders();
+          const matchIdx = currentLocal.findIndex(
+            (o) => o.order_number.toUpperCase() === orderData.order_number.toUpperCase()
+          );
+          if (matchIdx >= 0) {
+            currentLocal[matchIdx] = {
+              ...currentLocal[matchIdx],
+              status: orderData.status,
+              updated_at: orderData.updated_at,
+              status_history: orderData.status_history || currentLocal[matchIdx].status_history,
+            };
+            localStorage.setItem(CUSTOMER_ORDERS_STORAGE_KEY, JSON.stringify(currentLocal));
+          }
+        } catch {
+          // Ignore local storage error
+        }
+        return orderData as Order;
+      }
+    }
+  } catch (err) {
+    console.warn('Live order lookup note:', err);
   }
 
-  // 2. Check sample atelier orders for testing and demonstration
-  const sampleMatch = initialSampleOrders.find(
-    (o) => o.order_number.toUpperCase() === cleanNumber || o.order_number.endsWith(cleanNumber)
-  );
-  if (sampleMatch) {
-    return sampleMatch;
-  }
-
-  // 3. Attempt direct Supabase lookup if authenticated
+  // 2. Direct Supabase query for authenticated admin
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData?.session) {
       const { data } = await supabase
         .from('orders')
-        .select('*, order_items(*)')
-        .eq('order_number', cleanNumber)
+        .select('*, order_items(*), order_status_history(*)')
+        .or(`order_number.eq.${cleanNumber},order_number.eq.MERO-${cleanNumber}`)
         .maybeSingle();
 
       if (data) {
         return {
           ...data,
           items: data.order_items,
+          status_history: data.order_status_history,
         };
       }
     }
   } catch {
     // Handled gracefully
+  }
+
+  // 3. Fallback to customer's order placed on this specific device if offline
+  const customerOrders = getCustomerOrders();
+  const localMatch = customerOrders.find(
+    (o) =>
+      o.order_number.toUpperCase() === cleanNumber ||
+      o.order_number.toUpperCase() === `MERO-${cleanNumber}`
+  );
+  if (localMatch) {
+    return localMatch;
   }
 
   return null;

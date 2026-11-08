@@ -92,7 +92,10 @@ export default function ProductDetail() {
     return product.stock;
   }, [product, currentVariant]);
 
-  const isOutOfStock = product?.production === 'ready' && availableStock <= 0;
+  const isInventoryControlled =
+    product?.production === 'ready' || product?.production === 'limited';
+  const isOutOfStock = Boolean(isInventoryControlled && availableStock <= 0);
+  const maxAllowedQuantity = isInventoryControlled ? Math.max(1, availableStock) : 20;
 
   const handleAddToBag = () => {
     if (!product || isOutOfStock) return;
@@ -257,26 +260,32 @@ export default function ProductDetail() {
               <span
                 className="production-dot"
                 style={{
-                  background: isOutOfStock ? '#a34d55' : product.production === 'ready' ? '#567c4b' : '#c4a46d',
+                  background: isOutOfStock
+                    ? '#a34d55'
+                    : product.production === 'ready'
+                    ? '#567c4b'
+                    : product.production === 'limited'
+                    ? '#806f77'
+                    : '#c4a46d',
                 }}
               />
               <div>
                 <strong>
                   {isOutOfStock
                     ? isAr
-                      ? 'نفدت الكمية الحالية لهذا الخيار'
-                      : 'Currently out of stock in this option'
+                      ? 'نفدت الكمية'
+                      : 'Out of Stock'
                     : product.production === 'ready'
                     ? isAr
-                      ? `قطعة جاهزة للشحن الفوري (${availableStock} متوفر)`
-                      : `Ready to ship (${availableStock} available in stock)`
+                      ? `جاهز للشحن الفوري (${availableStock} متوفر في المخزون)`
+                      : `Ready to Ship (${availableStock} in stock)`
                     : product.production === 'limited'
                     ? isAr
                       ? `إصدار محدود حصري (${availableStock} متبقي)`
                       : `Limited Atelier Edition (${availableStock} remaining)`
                     : isAr
-                    ? 'تنفيذ يدوي مخصص يُحاك بعد تأكيد الطلب'
-                    : 'Bespoke hand production initiated upon order'}
+                    ? 'يُنفّذ حسب الطلب (تفصيل وتطريز يدوي)'
+                    : 'Made to Order (Bespoke Hand Embroidery)'}
                 </strong>
                 <p>{isAr ? product.deliveryAr : product.delivery}</p>
               </div>
@@ -296,9 +305,11 @@ export default function ProductDetail() {
                 <span className="w-8 text-center font-medium">{quantity}</span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(Math.min(20, Math.min(availableStock || 20, quantity + 1)))}
+                  onClick={() =>
+                    setQuantity(Math.min(20, Math.min(maxAllowedQuantity, quantity + 1)))
+                  }
                   aria-label="Increase quantity"
-                  disabled={isOutOfStock || quantity >= availableStock}
+                  disabled={isOutOfStock || quantity >= maxAllowedQuantity}
                 >
                   +
                 </button>
@@ -316,7 +327,7 @@ export default function ProductDetail() {
                     {isAr ? 'تمت الإضافة للحقيبة' : 'Added to Bag'}
                   </>
                 ) : isOutOfStock ? (
-                  isAr ? 'غير متوفر حالياً' : 'Out of Stock'
+                  isAr ? 'نفدت الكمية' : 'Out of Stock'
                 ) : (
                   <>
                     <ShoppingBag size={16} />

@@ -15,7 +15,9 @@ import {
   ArrowRight,
   ShieldCheck,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import { useBoutique } from '../components/SiteShell';
 import { lookupPublicOrder, getCustomerOrders } from '../lib/api';
 import {
@@ -38,6 +40,7 @@ export default function TrackOrder() {
   const [searchedNumber, setSearchedNumber] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
   // Load any previously placed orders from local storage
   useEffect(() => {
@@ -56,13 +59,39 @@ export default function TrackOrder() {
     }
   }, []);
 
-  const performLookup = async (queryToSearch: string) => {
+  // Real-time Supabase subscription: instantly reflects status changes made in Admin!
+  useEffect(() => {
+    if (!order?.order_number) return;
+
+    const channel = supabase
+      .channel(`order-tracking-${order.order_number}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `order_number=eq.${order.order_number}`,
+        },
+        () => {
+          // Re-fetch latest live status from database
+          performLookup(order.order_number, false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [order?.order_number]);
+
+  const performLookup = async (queryToSearch: string, updateUrl: boolean = true) => {
     const validation = validateOrderNumberInput(queryToSearch);
     if (!validation.valid) {
       setErrorMessage(
         isAr
-          ? 'يرجى إدخال رقم طلب صحيح (مثال: MERO-1001)'
-          : 'Please enter a valid order reference (e.g. MERO-1001)'
+          ? 'يرجى إدخال رقم طلب صحيح (مثال: MERO-1005)'
+          : 'Please enter a valid order reference (e.g. MERO-1005)'
       );
       return;
     }
@@ -77,14 +106,16 @@ export default function TrackOrder() {
         setOrder(null);
         setErrorMessage(
           isAr
-            ? `لم نعثر على طلب بالرقم "${validation.normalized}". يرجى التأكد من الرقم أو التواصل مع خدمة عملاء الأتيليه عبر واتساب.`
-            : `No order found with reference "${validation.normalized}". Please verify the number or contact our Atelier Concierge.`
+            ? `لم نعثر على طلب مسجل بالرقم "${validation.normalized}". يرجى التحقق من الرقم أو التواصل مع خدمة عملاء الأتيليه.`
+            : `No order found with reference "${validation.normalized}". Please verify the number or contact atelier concierge.`
         );
       } else {
         setOrder(result);
-        // Sync URL query without full reload
-        const newUrl = `${window.location.pathname}?order=${encodeURIComponent(validation.normalized)}`;
-        window.history.replaceState({ path: newUrl }, '', newUrl);
+        setLastRefreshedAt(new Date());
+        if (updateUrl && typeof window !== 'undefined') {
+          const newUrl = `${window.location.pathname}?order=${encodeURIComponent(validation.normalized)}`;
+          window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
       }
     } catch (err) {
       setOrder(null);
@@ -105,9 +136,9 @@ export default function TrackOrder() {
     performLookup(orderQuery);
   };
 
-  const handleSelectSample = (sampleNumber: string) => {
-    setOrderQuery(sampleNumber);
-    performLookup(sampleNumber);
+  const handleSelectCustomerOrder = (selectedNumber: string) => {
+    setOrderQuery(selectedNumber);
+    performLookup(selectedNumber);
   };
 
   const milestones: OrderMilestone[] = order ? computeOrderMilestones(order.status) : [];
@@ -178,7 +209,7 @@ export default function TrackOrder() {
                   type="text"
                   value={orderQuery}
                   onChange={(e) => setOrderQuery(e.target.value)}
-                  placeholder={isAr ? 'أدخلي رقم الطلب (مثال: MERO-1001)' : 'Enter Order Number (e.g. MERO-1001)'}
+                  placeholder={isAr ? 'أدخلي رقم الطلب (مثال: MERO-1005)' : 'Enter Order Number (e.g. MERO-1005)'}
                   className="search-input"
                   aria-label={isAr ? 'رقم الطلب' : 'Order Reference Number'}
                   autoComplete="off"
@@ -201,7 +232,7 @@ export default function TrackOrder() {
               </div>
               <button type="submit" disabled={loading} className="solid-button tracking-submit-btn">
                 {loading ? (
-                  <span>{isAr ? 'جاري البحث...' : 'Searching...'}</span>
+                  <span>{isAr ? 'جاري البحث…' : 'Searching…'}</span>
                 ) : (
                   <>
                     <span>{isAr ? 'تتبع الطلب' : 'Track Order'}</span>
@@ -210,41 +241,6 @@ export default function TrackOrder() {
                 )}
               </button>
             </form>
-
-            {/* Quick Sample Selector for immediate test & customer convenience */}
-            <div className="tracking-samples">
-              <span className="samples-label">{isAr ? 'أرقام طلبات تجريبية:' : 'Try sample orders:'}</span>
-              <div className="samples-tags">
-                <button
-                  type="button"
-                  onClick={() => handleSelectSample('MERO-1001')}
-                  className="sample-tag-btn"
-                >
-                  MERO-1001 ({isAr ? 'جاري التطريز' : 'In Crafting'})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectSample('MERO-1002')}
-                  className="sample-tag-btn"
-                >
-                  MERO-1002 ({isAr ? 'مع المندوب' : 'Out for Delivery'})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectSample('MERO-1003')}
-                  className="sample-tag-btn"
-                >
-                  MERO-1003 ({isAr ? 'تم التسليم' : 'Delivered'})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectSample('MERO-1004')}
-                  className="sample-tag-btn"
-                >
-                  MERO-1004 ({isAr ? 'تم التأكيد' : 'Confirmed'})
-                </button>
-              </div>
-            </div>
 
             {/* Customer's placed orders on this browser */}
             {customerOrders.length > 0 && (
@@ -258,7 +254,7 @@ export default function TrackOrder() {
                     <button
                       key={co.order_number}
                       type="button"
-                      onClick={() => handleSelectSample(co.order_number)}
+                      onClick={() => handleSelectCustomerOrder(co.order_number)}
                       className={`recent-order-chip ${order?.order_number === co.order_number ? 'active' : ''}`}
                     >
                       <strong>{co.order_number}</strong>
@@ -335,10 +331,32 @@ export default function TrackOrder() {
                 </div>
 
                 <div className="order-status-current">
-                  <div className="status-indicator">
-                    <span className={`status-dot ${order.status}`} />
-                    <strong>{getStatusLabel(order.status)}</strong>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="status-indicator">
+                      <span className={`status-dot ${order.status}`} />
+                      <strong>{getStatusLabel(order.status)}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => performLookup(order.order_number, false)}
+                      disabled={loading}
+                      className="px-2 py-1 border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] text-[#49343f] text-xs flex items-center gap-1 hover:bg-[#f5efec]"
+                      title={isAr ? 'تحديث فوري للحالة من قاعدة البيانات' : 'Live refresh status from database'}
+                    >
+                      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                      <span className="text-[11px]">{isAr ? 'تحديث فوري' : 'Live Refresh'}</span>
+                    </button>
                   </div>
+                  {lastRefreshedAt && (
+                    <span className="text-[10px] text-[#806f77] block text-right mt-1">
+                      {isAr ? 'آخر فحص مباشر: ' : 'Live check: '}
+                      {lastRefreshedAt.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </span>
+                  )}
                   {order.status !== 'delivered' && order.status !== 'cancelled' && (
                     <div className="delivery-estimate">
                       <Calendar size={13} />
@@ -462,7 +480,7 @@ export default function TrackOrder() {
                       <div>
                         <strong>{order.customer_name}</strong>
                         <p>{order.governorate} · {order.city_area}</p>
-                        <p className="address-sub">{order.address}</p>
+                        {order.address && <p className="address-sub">{order.address}</p>}
                       </div>
                     </div>
 
@@ -478,12 +496,12 @@ export default function TrackOrder() {
                       </div>
                     </div>
 
-                    {order.admin_notes && (
+                    {order.notes && (
                       <div className="atelier-notes-box">
                         <Sparkles size={16} className="notes-icon" />
                         <div>
-                          <strong>{isAr ? 'ملاحظات الأتيليه:' : 'Atelier Notes:'}</strong>
-                          <p>{order.admin_notes}</p>
+                          <strong>{isAr ? 'ملاحظات الطلب:' : 'Order Notes:'}</strong>
+                          <p>{order.notes}</p>
                         </div>
                       </div>
                     )}

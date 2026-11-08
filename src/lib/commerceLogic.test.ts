@@ -56,6 +56,7 @@ test('validateStockAvailability checks stock for ready items and allows made-to-
     ['p1', { id: 'p1', price_egp: 2500, stock: 5, production_type: 'ready' as const, is_published: true }],
     ['p2', { id: 'p2', price_egp: 4000, stock: 0, production_type: 'made_to_order' as const, is_published: true }],
     ['p3', { id: 'p3', price_egp: 1200, stock: 2, production_type: 'ready' as const, is_published: false }],
+    ['p4', { id: 'p4', price_egp: 5500, stock: 1, production_type: 'limited' as const, is_published: true }],
   ]);
 
   // Valid ready items within stock
@@ -67,7 +68,7 @@ test('validateStockAvailability checks stock for ready items and allows made-to-
   assert.equal(check2.valid, false);
   assert.ok(check2.errors[0].includes('Insufficient stock'));
 
-  // Made to order with 0 ready stock is valid
+  // Made to order with 0 stock is valid and never blocks order
   const check3 = validateStockAvailability([{ productId: 'p2', size: 'Free', color: 'Rose', quantity: 2 }], catalog);
   assert.equal(check3.valid, true);
 
@@ -75,6 +76,15 @@ test('validateStockAvailability checks stock for ready items and allows made-to-
   const check4 = validateStockAvailability([{ productId: 'p3', size: 'S', color: 'Plum', quantity: 1 }], catalog);
   assert.equal(check4.valid, false);
   assert.ok(check4.errors[0].includes('not currently published'));
+
+  // Limited edition within stock
+  const check5 = validateStockAvailability([{ productId: 'p4', size: 'Free', color: 'Onyx', quantity: 1 }], catalog);
+  assert.equal(check5.valid, true);
+
+  // Limited edition exceeding stock is rejected
+  const check6 = validateStockAvailability([{ productId: 'p4', size: 'Free', color: 'Onyx', quantity: 2 }], catalog);
+  assert.equal(check6.valid, false);
+  assert.ok(check6.errors[0].includes('Insufficient stock'));
 });
 
 test('calculateVerifiedSubtotal ignores client-tampered prices', () => {

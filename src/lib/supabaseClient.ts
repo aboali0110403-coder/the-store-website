@@ -25,15 +25,44 @@ function resolveSupabaseAnonKey(): string {
     (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)
   )?.trim();
 
-  if (!rawKey || rawKey === 'undefined' || rawKey === 'null' || rawKey === 'MY_SUPABASE_KEY' || rawKey.length < 10) {
+  // STRICT SECURITY GUARD:
+  // Secret API keys (`sb_secret_...`) and service_role keys are forbidden in client-side code.
+  // The browser must only ever use the Supabase publishable/anon key.
+  if (
+    rawKey &&
+    (rawKey.startsWith('sb_secret_') ||
+      rawKey.includes('service_role') ||
+      rawKey.toLowerCase().includes('secret'))
+  ) {
+    // Safely discard the forbidden secret key and fall back to public anon key
     return FALLBACK_ANON_KEY;
   }
-  return rawKey;
+
+  if (
+    !rawKey ||
+    rawKey === 'undefined' ||
+    rawKey === 'null' ||
+    rawKey === 'MY_SUPABASE_KEY' ||
+    rawKey.length < 10
+  ) {
+    return FALLBACK_ANON_KEY;
+  }
+
+  // Only accept verified publishable keys (sb_publishable_...) or standard anon JWTs (eyJ...)
+  if (rawKey.startsWith('sb_publishable_') || rawKey.startsWith('eyJ')) {
+    return rawKey;
+  }
+
+  return FALLBACK_ANON_KEY;
 }
 
 const supabaseUrl = resolveSupabaseUrl();
 const supabaseAnonKey = resolveSupabaseAnonKey();
 
+/**
+ * Singleton Supabase client for client-side operations.
+ * Uses only publishable anon key with browser storage and RLS.
+ */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,

@@ -1,10 +1,30 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
-import { Scissors, CheckCircle2, ShieldCheck, Sparkles, Plus, Trash2 } from 'lucide-react';
+import {
+  Scissors,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+  Image as ImageIcon,
+} from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
-import { submitCustomDesignRequest } from '../lib/api';
+import { submitCustomDesignRequest, uploadDesignReferenceImage, deleteStorageFile } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
 import { CaptchaChallenge } from '../components/CaptchaChallenge';
+
+interface ReferenceImageItem {
+  id: string;
+  url: string;
+  path?: string;
+  name: string;
+  preview: string;
+  isUploading?: boolean;
+  error?: string;
+}
 
 export default function CustomDesign() {
   const { language } = useBoutique();
@@ -24,21 +44,109 @@ export default function CustomDesign() {
     neededBy: '',
   });
 
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [referenceItems, setReferenceItems] = useState<ReferenceImageItem[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [showUrlFallback, setShowUrlFallback] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [isCaptchaValid, setIsCaptchaValid] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState<{ requestNumber: string; name: string } | null>(null);
 
-  const handleAddImageUrl = () => {
-    if (!newImageUrl.trim() || imageUrls.length >= 5) return;
-    setImageUrls([...imageUrls, newImageUrl.trim()]);
-    setNewImageUrl('');
+  const handleDeviceFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadError('');
+    const remainingSlots = 5 - referenceItems.length;
+    if (remainingSlots <= 0) {
+      setUploadError(
+        isAr
+          ? 'الحد الأقصى للصور المرجعية هو ٥ صور فقط.'
+          : 'You can attach up to 5 reference images maximum.'
+      );
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+
+    for (const file of filesToUpload) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError(
+          isAr
+            ? `الملف "${file.name}" ليس بصيغة مدعومة. الصيغ المسموحة: JPEG, PNG, WebP.`
+            : `File "${file.name}" has an unsupported format. Supported: JPEG, PNG, WebP.`
+        );
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError(
+          isAr
+            ? `حجم الملف "${file.name}" يتجاوز الحد الأقصى (٥ ميجابايت).`
+            : `File "${file.name}" exceeds the 5 MB maximum size limit.`
+        );
+        continue;
+      }
+
+      const tempId = `ref-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const previewUrl = URL.createObjectURL(file);
+
+      const newItem: ReferenceImageItem = {
+        id: tempId,
+        url: '',
+        name: file.name,
+        preview: previewUrl,
+        isUploading: true,
+      };
+
+      setReferenceItems((prev) => [...prev, newItem]);
+
+      try {
+        const res = await uploadDesignReferenceImage(file);
+        setReferenceItems((prev) =>
+          prev.map((item) =>
+            item.id === tempId
+              ? { ...item, url: res.url, path: res.path, isUploading: false }
+              : item
+          )
+        );
+      } catch (err: any) {
+        setReferenceItems((prev) =>
+          prev.map((item) =>
+            item.id === tempId
+              ? { ...item, isUploading: false, error: err?.message || 'Upload failed' }
+              : item
+          )
+        );
+      }
+    }
+
+    e.target.value = '';
   };
 
-  const handleRemoveImageUrl = (index: number) => {
-    setImageUrls(imageUrls.filter((_, i) => i !== index));
+  const handleRemoveReferenceItem = async (index: number) => {
+    const item = referenceItems[index];
+    if (item.path) {
+      deleteStorageFile('design-references', item.path);
+    }
+    setReferenceItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddManualUrl = () => {
+    if (!newImageUrl.trim() || referenceItems.length >= 5) return;
+    const tempId = `url-${Date.now()}`;
+    setReferenceItems((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        url: newImageUrl.trim(),
+        name: newImageUrl.trim().split('/').pop() || 'reference-image',
+        preview: newImageUrl.trim(),
+        isUploading: false,
+      },
+    ]);
+    setNewImageUrl('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,8 +175,19 @@ export default function CustomDesign() {
       return;
     }
 
+    const stillUploading = referenceItems.some((i) => i.isUploading);
+    if (stillUploading) {
+      setError(
+        isAr
+          ? 'يرجى الانتظار حتى اكتمال رفع الصور المرجعية قبل إرسال الطلب.'
+          : 'Please wait until all reference images finish uploading.'
+      );
+      return;
+    }
+
     setSaving(true);
     try {
+      const validUrls = referenceItems.filter((i) => Boolean(i.url)).map((i) => i.url);
       const res = await submitCustomDesignRequest({
         customer_name: form.name,
         phone: form.phone,
@@ -79,7 +198,7 @@ export default function CustomDesign() {
         embroidery_style: form.embroideryStyle || undefined,
         size_details: form.sizeDetails || undefined,
         description: form.description,
-        reference_image_urls: imageUrls,
+        reference_image_urls: validUrls,
         target_budget_egp: form.targetBudget ? Number(form.targetBudget) : undefined,
         needed_by: form.neededBy || undefined,
       });
@@ -276,43 +395,123 @@ export default function CustomDesign() {
               </div>
 
               <div className="form-field form-field-wide">
-                <span>{isAr ? 'روابط صور مرجعية (حتى ٥ صور)' : 'Reference Image URLs (Up to 5)'}</span>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="url"
-                    placeholder="https://example.com/photo.jpg"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                  />
+                <div className="flex items-center justify-between mb-1">
+                  <span>
+                    {isAr
+                      ? `صور مرجعية للتصميم (${referenceItems.length} من ٥)`
+                      : `Reference Images (${referenceItems.length} of 5)`}
+                  </span>
                   <button
                     type="button"
-                    onClick={handleAddImageUrl}
-                    className="outline-button min-h-[40px] px-3 text-xs"
-                    disabled={imageUrls.length >= 5}
+                    onClick={() => setShowUrlFallback(!showUrlFallback)}
+                    className="text-[11px] text-[#49343f] underline"
                   >
-                    <Plus size={14} />
-                    {isAr ? 'إضافة' : 'Add'}
+                    {showUrlFallback
+                      ? isAr
+                        ? 'إخفاء خيار الروابط'
+                        : 'Hide URL option'
+                      : isAr
+                      ? 'إضافة رابط صورة كبديل'
+                      : 'Or enter image URL instead'}
                   </button>
                 </div>
-                {imageUrls.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mt-1">
-                    {imageUrls.map((url, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between text-xs bg-[#f5efec] p-2 border border-[rgba(73,52,63,0.15)]"
-                      >
-                        <span className="truncate max-w-[280px]">{url}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImageUrl(i)}
-                          className="text-[#a34d55]"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+
+                {uploadError && (
+                  <p className="text-xs text-[#a34d55] mb-2">{uploadError}</p>
                 )}
+
+                {/* Device Upload Area */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <label
+                      className={`outline-button min-h-[42px] px-4 text-xs cursor-pointer flex items-center gap-2 ${
+                        referenceItems.length >= 5 ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      <Upload size={14} />
+                      <span>
+                        {isAr ? 'رفع صور من جهازكِ' : 'Upload photos from device'}
+                      </span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={handleDeviceFiles}
+                        disabled={referenceItems.length >= 5}
+                      />
+                    </label>
+                    <span className="text-[11px] text-[#806f77]">
+                      {isAr
+                        ? 'JPEG, PNG, WebP (حتى ٥ صور، بحد أقصى ٥ ميجابايت لكل صورة)'
+                        : 'JPEG, PNG, WebP (Up to 5 images, max 5 MB each)'}
+                    </span>
+                  </div>
+
+                  {/* Optional URL Input Fallback */}
+                  {showUrlFallback && (
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://.../reference.webp"
+                        value={newImageUrl}
+                        onChange={(e) => setNewImageUrl(e.target.value)}
+                        disabled={referenceItems.length >= 5}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddManualUrl}
+                        className="outline-button min-h-[40px] px-3 text-xs"
+                        disabled={referenceItems.length >= 5 || !newImageUrl.trim()}
+                      >
+                        <Plus size={14} />
+                        {isAr ? 'إضافة رابط' : 'Add URL'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Thumbnail Previews Grid */}
+                  {referenceItems.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-2">
+                      {referenceItems.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="relative border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] p-1.5 flex flex-col gap-1 text-xs"
+                        >
+                          <img
+                            src={item.preview}
+                            alt={item.name}
+                            className="w-full h-24 object-cover border border-[rgba(73,52,63,0.1)]"
+                          />
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-[#806f77] truncate max-w-[85px]">
+                              {item.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveReferenceItem(index)}
+                              className="text-[#a34d55] hover:text-[#49343f] p-0.5"
+                              title={isAr ? 'حذف الصورة' : 'Remove image'}
+                              aria-label={`Remove reference image ${index + 1}`}
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                          {item.isUploading && (
+                            <span className="text-[9px] text-[#c4a46d]">
+                              {isAr ? 'جارٍ الرفع…' : 'Uploading…'}
+                            </span>
+                          )}
+                          {item.error && (
+                            <span className="text-[9px] text-[#a34d55]">
+                              {item.error}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
