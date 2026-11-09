@@ -15,6 +15,8 @@ import {
 } from './store';
 import { evaluateCoupon, checkGuestRateLimit } from './commerceLogic';
 
+const allowLocalFallbacks = import.meta.env.DEV;
+
 /**
  * Maps raw database product row into frontend Product interface
  */
@@ -98,18 +100,18 @@ export async function fetchCatalog(): Promise<Product[]> {
 
     if (error) {
       console.warn('Supabase products fetch note:', error.message);
-      return initialArtisanProducts;
+      return allowLocalFallbacks ? initialArtisanProducts : [];
     }
 
     if (!data || data.length === 0) {
-      // Graceful fallback to verified curated initial catalog
-      return initialArtisanProducts;
+      // Never present local/demo catalog data as live production inventory.
+      return allowLocalFallbacks ? initialArtisanProducts : [];
     }
 
     return data.map(mapProductRow);
   } catch (err) {
     console.error('Catalog fetch error:', err);
-    return initialArtisanProducts;
+    return allowLocalFallbacks ? initialArtisanProducts : [];
   }
 }
 
@@ -148,12 +150,12 @@ export async function fetchShippingRates(): Promise<ShippingRate[]> {
       .order('governorate', { ascending: true });
 
     if (error || !data || data.length === 0) {
-      return initialShippingRates;
+      return allowLocalFallbacks ? initialShippingRates : [];
     }
 
     return data as ShippingRate[];
   } catch (err) {
-    return initialShippingRates;
+    return allowLocalFallbacks ? initialShippingRates : [];
   }
 }
 
@@ -191,7 +193,7 @@ export async function validateCoupon(
     // If coupons table RLS is restricted to admin, check against verified boutique promotions
   }
 
-  const fallback = initialCoupons.find((c) => c.code.toUpperCase() === cleanCode);
+  const fallback = allowLocalFallbacks ? initialCoupons.find((c) => c.code.toUpperCase() === cleanCode) : undefined;
   const evalResult = evaluateCoupon(cleanCode, subtotal, fallback || null);
   return { ...evalResult, coupon: fallback };
 }
@@ -586,7 +588,7 @@ export async function fetchCategories(): Promise<CategoryItem[]> {
     }
   } catch {}
 
-  return initialCategories;
+  return allowLocalFallbacks ? initialCategories : [];
 }
 
 /**
@@ -625,7 +627,7 @@ export async function adminGetCategories(): Promise<CategoryItem[]> {
     }
   } catch {}
 
-  return initialCategories;
+  return allowLocalFallbacks ? initialCategories : [];
 }
 
 /**
@@ -838,7 +840,16 @@ export function saveCustomerOrder(order: Order): void {
     const existingRaw = localStorage.getItem(CUSTOMER_ORDERS_STORAGE_KEY);
     const existing: Order[] = existingRaw ? JSON.parse(existingRaw) : [];
     const filtered = existing.filter((o) => o.order_number !== order.order_number);
-    filtered.unshift(order);
+    // Keep only non-sensitive tracking metadata in browser storage.
+    filtered.unshift({
+      ...order,
+      phone: '',
+      email: null,
+      city_area: '',
+      address: '',
+      notes: null,
+      admin_notes: null,
+    });
     localStorage.setItem(CUSTOMER_ORDERS_STORAGE_KEY, JSON.stringify(filtered.slice(0, 20)));
   } catch {
     // Storage quota or privacy mode
@@ -852,7 +863,18 @@ export function getCustomerOrders(): Order[] {
   try {
     if (typeof window === 'undefined') return [];
     const existingRaw = localStorage.getItem(CUSTOMER_ORDERS_STORAGE_KEY);
-    return existingRaw ? JSON.parse(existingRaw) : [];
+    const existing: Order[] = existingRaw ? JSON.parse(existingRaw) : [];
+    const sanitized = existing.map((order) => ({
+      ...order,
+      phone: '',
+      email: null,
+      city_area: '',
+      address: '',
+      notes: null,
+      admin_notes: null,
+    }));
+    localStorage.setItem(CUSTOMER_ORDERS_STORAGE_KEY, JSON.stringify(sanitized));
+    return sanitized;
   } catch {
     return [];
   }
@@ -976,12 +998,17 @@ export async function deleteStorageFile(
  * Enforces rate limiting, phone verification, and returns sanitized data.
  * NEVER returns hardcoded demo orders or leaks private customer information.
  */
+function cleanPhoneForLookup(value?: string): string {
+  return (value || '').replace(/\D/g, '');
+}
+
 export async function lookupPublicOrder(
   rawOrderNumber: string,
   phoneVerification?: string
 ): Promise<Order | null> {
   const cleanNumber = (rawOrderNumber || '').trim().toUpperCase();
   if (!cleanNumber) return null;
+  if (!cleanPhoneForLookup(phoneVerification)) return null;
 
   // Rate-limiting check to prevent brute-force order enumeration
   const rateLimit = checkGuestRateLimit(`order_lookup_${cleanNumber}`, 15, 5 * 60 * 1000);
@@ -991,7 +1018,7 @@ export async function lookupPublicOrder(
     );
   }
 
-  const cleanPhone = phoneVerification ? phoneVerification.replace(/\D/g, '') : '';
+  const cleanPhone = cleanPhoneForLookup(phoneVerification);
 
   // 1. Primary: Live database lookup via public secure RPC (with phone verification)
   try {
@@ -1028,46 +1055,11 @@ export async function lookupPublicOrder(
     console.warn('Live order lookup note:', err);
   }
 
-  // 2. Direct Supabase query for authenticated admin session ONLY
-  try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session) {
-      const { data } = await supabase
-        .from('orders')
-        .select('*, order_items(*), order_status_history(*)')
-        .or(`order_number.eq.${cleanNumber},order_number.eq.MERO-${cleanNumber}`)
-        .maybeSingle();
+  // Do not query orders directly from a browser tracking path.
+  // Rely exclusively on the sanitized RPC response above.
 
-      if (data) {
-        return {
-          ...data,
-          items: data.order_items,
-          status_history: data.order_status_history,
-        };
-      }
-    }
-  } catch {
-    // Handled gracefully
-  }
-
-  // 3. Fallback: ONLY if phone was verified or this device has matching local order with verified phone
-  if (cleanPhone && cleanPhone.length >= 4) {
-    const customerOrders = getCustomerOrders();
-    const localMatch = customerOrders.find((o) => {
-      const numMatch =
-        o.order_number.toUpperCase() === cleanNumber ||
-        o.order_number.toUpperCase() === `MERO-${cleanNumber}`;
-      const localPhoneDigits = (o.phone || '').replace(/\D/g, '');
-      const phoneMatch =
-        localPhoneDigits.endsWith(cleanPhone) || cleanPhone.endsWith(localPhoneDigits);
-      return numMatch && phoneMatch;
-    });
-
-    if (localMatch) {
-      return localMatch;
-    }
-  }
-
+  // Do not return locally cached order details as an authorization fallback.
+  // Browser storage is only a non-sensitive convenience list.
   return null;
 }
 

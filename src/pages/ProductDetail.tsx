@@ -33,25 +33,32 @@ export default function ProductDetail() {
     if (!slug) return;
     let isMounted = true;
     setLoading(true);
+    setProduct(null);
 
-    fetchProductBySlug(slug).then((res) => {
-      if (!isMounted) return;
-      if (res) {
-        setProduct(res);
-        setActiveImage(res.image);
-        if (res.sizes.length > 0) setSelectedSize(res.sizes[0]);
-        if (res.colors.length > 0) setSelectedColor(res.colors[0]);
-      } else {
-        const local = products.find((p) => p.slug === slug);
-        if (local) {
-          setProduct(local);
-          setActiveImage(local.image);
-          if (local.sizes.length > 0) setSelectedSize(local.sizes[0]);
-          if (local.colors.length > 0) setSelectedColor(local.colors[0]);
+    fetchProductBySlug(slug)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res) {
+          setProduct(res);
+          setActiveImage(res.image);
+          if (res.sizes.length > 0) setSelectedSize(res.sizes[0]);
+          if (res.colors.length > 0) setSelectedColor(res.colors[0]);
+        } else {
+          const local = products.find((p) => p.slug === slug);
+          if (local) {
+            setProduct(local);
+            setActiveImage(local.image);
+            if (local.sizes.length > 0) setSelectedSize(local.sizes[0]);
+            if (local.colors.length > 0) setSelectedColor(local.colors[0]);
+          }
         }
-      }
-      setLoading(false);
-    });
+      })
+      .catch((error) => {
+        if (isMounted) console.error('Product detail fetch error:', error);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
     return () => {
       isMounted = false;
