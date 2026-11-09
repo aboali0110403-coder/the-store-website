@@ -35,6 +35,7 @@ export default function TrackOrder() {
   const [, setLocation] = useLocation();
 
   const [orderQuery, setOrderQuery] = useState('');
+  const [phoneQuery, setPhoneQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
   const [searchedNumber, setSearchedNumber] = useState('');
@@ -52,9 +53,11 @@ export default function TrackOrder() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlOrder = params.get('order');
+      const urlPhone = params.get('phone');
       if (urlOrder) {
         setOrderQuery(urlOrder);
-        performLookup(urlOrder);
+        if (urlPhone) setPhoneQuery(urlPhone);
+        performLookup(urlOrder, urlPhone || undefined);
       }
     }
   }, []);
@@ -75,7 +78,7 @@ export default function TrackOrder() {
         },
         () => {
           // Re-fetch latest live status from database
-          performLookup(order.order_number, false);
+          performLookup(order.order_number, phoneQuery || undefined, false);
         }
       )
       .subscribe();
@@ -83,9 +86,13 @@ export default function TrackOrder() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [order?.order_number]);
+  }, [order?.order_number, phoneQuery]);
 
-  const performLookup = async (queryToSearch: string, updateUrl: boolean = true) => {
+  const performLookup = async (
+    queryToSearch: string,
+    phoneToVerify?: string,
+    updateUrl: boolean = true
+  ) => {
     const validation = validateOrderNumberInput(queryToSearch);
     if (!validation.valid) {
       setErrorMessage(
@@ -100,14 +107,16 @@ export default function TrackOrder() {
     setErrorMessage('');
     setSearchedNumber(validation.normalized);
 
+    const phoneParam = phoneToVerify !== undefined ? phoneToVerify : phoneQuery;
+
     try {
-      const result = await lookupPublicOrder(validation.normalized);
+      const result = await lookupPublicOrder(validation.normalized, phoneParam);
       if (!result) {
         setOrder(null);
         setErrorMessage(
           isAr
-            ? `لم نعثر على طلب مسجل بالرقم "${validation.normalized}". يرجى التحقق من الرقم أو التواصل مع خدمة عملاء الأتيليه.`
-            : `No order found with reference "${validation.normalized}". Please verify the number or contact atelier concierge.`
+            ? `لم نعثر على طلب مسجل بالرقم "${validation.normalized}"${phoneParam ? ' أو أن رقم الهاتف غير متطابق' : ''}. يرجى التحقق من الرقم أو التواصل مع خدمة عملاء الأتيليه.`
+            : `No order found with reference "${validation.normalized}"${phoneParam ? ' or phone verification did not match' : ''}. Please verify the reference or contact atelier concierge.`
         );
       } else {
         setOrder(result);
@@ -133,12 +142,14 @@ export default function TrackOrder() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    performLookup(orderQuery);
+    performLookup(orderQuery, phoneQuery);
   };
 
   const handleSelectCustomerOrder = (selectedNumber: string) => {
     setOrderQuery(selectedNumber);
-    performLookup(selectedNumber);
+    const matched = customerOrders.find((c) => c.order_number === selectedNumber);
+    const matchingPhone = matched?.phone || '';
+    performLookup(selectedNumber, matchingPhone || undefined);
   };
 
   const milestones: OrderMilestone[] = order ? computeOrderMilestones(order.status) : [];
@@ -209,11 +220,12 @@ export default function TrackOrder() {
                   type="text"
                   value={orderQuery}
                   onChange={(e) => setOrderQuery(e.target.value)}
-                  placeholder={isAr ? 'أدخلي رقم الطلب (مثال: MERO-1005)' : 'Enter Order Number (e.g. MERO-1005)'}
+                  placeholder={isAr ? 'رقم الطلب (مثال: MERO-1005)' : 'Order Reference (e.g. MERO-1005)'}
                   className="search-input"
                   aria-label={isAr ? 'رقم الطلب' : 'Order Reference Number'}
                   autoComplete="off"
                   spellCheck="false"
+                  required
                 />
                 {orderQuery && (
                   <button
@@ -230,6 +242,29 @@ export default function TrackOrder() {
                   </button>
                 )}
               </div>
+
+              <div className="search-input-wrap phone-input-wrap">
+                <input
+                  type="tel"
+                  value={phoneQuery}
+                  onChange={(e) => setPhoneQuery(e.target.value)}
+                  placeholder={isAr ? 'رقم الهاتف (اختياري للتحقق والخصوصية)' : 'Phone number (optional verification)'}
+                  className="search-input"
+                  aria-label={isAr ? 'رقم الهاتف للتحقق' : 'Phone Number for Verification'}
+                  autoComplete="tel"
+                />
+                {phoneQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPhoneQuery('')}
+                    className="clear-search-btn"
+                    aria-label={isAr ? 'مسح' : 'Clear phone'}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
               <button type="submit" disabled={loading} className="solid-button tracking-submit-btn">
                 {loading ? (
                   <span>{isAr ? 'جاري البحث…' : 'Searching…'}</span>
@@ -338,7 +373,7 @@ export default function TrackOrder() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => performLookup(order.order_number, false)}
+                      onClick={() => performLookup(order.order_number, phoneQuery || undefined, false)}
                       disabled={loading}
                       className="px-2 py-1 border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] text-[#49343f] text-xs flex items-center gap-1 hover:bg-[#f5efec]"
                       title={isAr ? 'تحديث فوري للحالة من قاعدة البيانات' : 'Live refresh status from database'}

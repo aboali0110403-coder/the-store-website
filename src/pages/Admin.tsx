@@ -41,12 +41,17 @@ import {
   adminUpdateOrderStatus,
   adminGetCustomDesignRequests,
   adminUpdateCustomDesignStatus,
+  adminGetCategories,
+  adminUpsertCategory,
+  adminDeleteCategory,
   uploadProductImage,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
+import { CategoryItem } from '../lib/store';
 
 type Tab =
   | 'products'
+  | 'categories'
   | 'gallery'
   | 'variants'
   | 'shipping'
@@ -55,7 +60,7 @@ type Tab =
   | 'custom_requests';
 
 export default function Admin() {
-  const { language, refreshCatalog } = useBoutique();
+  const { language, refreshCatalog, refreshCategories } = useBoutique();
   const isAr = language === 'ar';
 
   // Auth state
@@ -69,6 +74,10 @@ export default function Admin() {
 
   // Data states
   const [products, setProducts] = useState<any[]>([]);
+  const [adminCategories, setAdminCategories] = useState<CategoryItem[]>([]);
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [categoryUploading, setCategoryUploading] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [shippingRates, setShippingRates] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -251,12 +260,13 @@ export default function Admin() {
     setLoading(true);
     setErrorMessage('');
     try {
-      const [prods, rates, coups, ords, reqs] = await Promise.allSettled([
+      const [prods, rates, coups, ords, reqs, cats] = await Promise.allSettled([
         adminGetProducts(),
         adminGetShippingRates(),
         adminGetCoupons(),
         adminGetOrders(),
         adminGetCustomDesignRequests(),
+        adminGetCategories(),
       ]);
 
       if (prods.status === 'fulfilled') {
@@ -269,6 +279,7 @@ export default function Admin() {
       if (coups.status === 'fulfilled') setCoupons(coups.value);
       if (ords.status === 'fulfilled') setOrders(ords.value);
       if (reqs.status === 'fulfilled') setCustomRequests(reqs.value);
+      if (cats.status === 'fulfilled') setAdminCategories(cats.value || []);
     } catch (e: any) {
       setErrorMessage(e?.message || 'Failed to refresh data.');
     } finally {
@@ -528,6 +539,69 @@ export default function Admin() {
     }
   };
 
+  // Category Handlers
+  const handleEditCategory = (cat: CategoryItem) => {
+    setEditingCategory({ ...cat });
+    setCategoryError('');
+  };
+
+  const handleSaveCategory = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    setLoading(true);
+    setCategoryError('');
+    try {
+      await adminUpsertCategory(editingCategory);
+      setStatusMessage(
+        isAr
+          ? 'تم حفظ التصنيف وتحديث الصفحة الرئيسية بنجاح.'
+          : 'Category saved and homepage updated.'
+      );
+      setEditingCategory(null);
+      await loadDashboardData();
+      await refreshCategories();
+    } catch (err: any) {
+      setCategoryError(err?.message || 'Could not save category.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCategoryUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingCategory) return;
+    setCategoryUploading(true);
+    setCategoryError('');
+    try {
+      const res = await uploadProductImage(file, `cat_${editingCategory.slug}`);
+      setEditingCategory((prev) => (prev ? { ...prev, image: res.url } : null));
+      setStatusMessage(
+        isAr
+          ? 'تم رفع صورة التصنيف بنجاح!'
+          : 'Category image uploaded to storage.'
+      );
+    } catch (err: any) {
+      setCategoryError(err?.message || (isAr ? 'فشل رفع صورة التصنيف.' : 'Category upload failed.'));
+    } finally {
+      setCategoryUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleToggleCategoryPublished = async (cat: CategoryItem) => {
+    try {
+      const updated = { ...cat, is_published: !cat.is_published };
+      await adminUpsertCategory(updated);
+      await loadDashboardData();
+      await refreshCategories();
+      setStatusMessage(
+        isAr ? 'تم تحديث حالة ظهور التصنيف.' : 'Category publication status updated.'
+      );
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Could not update category status.');
+    }
+  };
+
   // Selected Product for Gallery / Variants
   const activeProduct = products.find((p) => p.id === selectedProductId);
 
@@ -655,6 +729,14 @@ export default function Admin() {
           >
             <Package size={15} />
             {isAr ? 'المنتجات' : 'Products'} ({products.length})
+          </button>
+
+          <button
+            className={activeTab === 'categories' ? 'active' : ''}
+            onClick={() => setActiveTab('categories')}
+          >
+            <Layers size={15} />
+            {isAr ? 'تصنيفات الرئيسية' : 'Categories'} ({adminCategories.length})
           </button>
 
           <button
@@ -1096,6 +1178,281 @@ export default function Admin() {
                       >
                         <Trash2 size={13} />
                         {isAr ? 'حذف' : 'Delete'}
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* CATEGORIES MANAGEMENT TAB ("تسوقي حسب التصنيف") */}
+        {activeTab === 'categories' && (
+          <div className="mero-editor">
+            <div className="mero-editor-head">
+              <div>
+                <h2>{isAr ? 'إدارة تصنيفات الصفحة الرئيسية ("تسوقي حسب التصنيف")' : 'Homepage "Explore By Category" Management'}</h2>
+                <p className="text-xs text-[#705e66] mt-1">
+                  {isAr
+                    ? 'يمكنكِ هنا تعديل أسماء التصنيفات (عربي وإنجليزي)، تغيير ترتيب الظهور، أو استبدال الصور التوضيحية الدائرية بصور حقيقية مرفوعة من جهازك فوراً.'
+                    : 'Manage the circular categories featured on the homepage: edit Arabic/English names, reorder them, or upload replacement images directly from your device.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="solid-button text-xs py-2 px-3 flex items-center gap-1.5"
+                onClick={() => {
+                  setEditingCategory({
+                    slug: `category-${Date.now()}`,
+                    name: '',
+                    nameAr: '',
+                    filter: '',
+                    image: '/products/embroidered-dress.svg',
+                    description: '',
+                    descriptionAr: '',
+                    sort_order: adminCategories.length + 1,
+                    is_published: true,
+                  });
+                  setCategoryError('');
+                }}
+              >
+                <Plus size={14} />
+                {isAr ? 'إضافة تصنيف جديد' : 'Add New Category'}
+              </button>
+            </div>
+
+            {/* Editing / Creating Form Card */}
+            {editingCategory && (
+              <form onSubmit={handleSaveCategory} className="border p-5 bg-[#fffaf8] my-4 shadow-sm">
+                <div className="flex items-center justify-between border-b pb-3 mb-4">
+                  <h3 className="font-serif text-lg text-[#3e3037] font-semibold">
+                    {editingCategory.id || adminCategories.some((c) => c.slug === editingCategory.slug)
+                      ? isAr
+                        ? `تعديل التصنيف: ${isAr ? editingCategory.nameAr || editingCategory.name : editingCategory.name}`
+                        : `Edit Category: ${editingCategory.name}`
+                      : isAr
+                      ? 'إضافة تصنيف جديد'
+                      : 'New Category'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCategory(null)}
+                    className="text-[#806f77] hover:text-[#3e3037]"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {categoryError && <div className="mero-error mb-3">{categoryError}</div>}
+
+                {/* Image Upload Area */}
+                <div className="mb-4 p-4 border border-dashed border-[#c4a46d] bg-[#fdf8f5]">
+                  <span className="block text-xs font-semibold text-[#49343f] uppercase tracking-wider mb-2">
+                    {isAr ? 'صورة التصنيف الدائرية *' : 'Circular Category Image *'}
+                  </span>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#c4a46d] bg-white flex-shrink-0 shadow-sm">
+                      <img
+                        src={editingCategory.image || '/products/embroidered-dress.svg'}
+                        alt={editingCategory.name || 'Category'}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="solid-button text-xs py-2 px-3.5 cursor-pointer flex items-center gap-1.5">
+                          <Upload size={14} />
+                          <span>
+                            {categoryUploading
+                              ? isAr
+                                ? 'جاري الرفع...'
+                                : 'Uploading...'
+                              : isAr
+                              ? 'رفع صورة من الجهاز'
+                              : 'Upload From Device'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleCategoryUploadFile}
+                            disabled={categoryUploading}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      <small className="text-[11px] text-[#7d6b73]">
+                        {isAr
+                          ? 'صيغ مدعومة: JPG, PNG, WebP (الحد الأقصى 5 ميجابايت). تظهر الصورة في إطار دائري أنيق على الصفحة الرئيسية.'
+                          : 'Formats: JPG, PNG, WebP (max 5MB). Rendered as an elegant circular badge on the homepage.'}
+                      </small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mero-form-grid">
+                  <label className="mero-field">
+                    <span>{isAr ? 'الاسم بالإنجليزية *' : 'Name (English) *'}</span>
+                    <input
+                      required
+                      value={editingCategory.name}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                      placeholder="e.g. Embroidered Dresses"
+                    />
+                  </label>
+
+                  <label className="mero-field">
+                    <span>{isAr ? 'الاسم بالعربية *' : 'Name (Arabic) *'}</span>
+                    <input
+                      required
+                      value={editingCategory.nameAr}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, nameAr: e.target.value })}
+                      placeholder="مثال: فساتين مطرزة"
+                      dir="rtl"
+                    />
+                  </label>
+
+                  <label className="mero-field">
+                    <span>{isAr ? 'فلتر تصنيف المنتجات *' : 'Product Category Filter *'}</span>
+                    <input
+                      required
+                      value={editingCategory.filter}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, filter: e.target.value })}
+                      placeholder="e.g. Dresses, Abayas, Kaftans..."
+                    />
+                    <small className="text-[11px] text-[#8a7a82]">
+                      {isAr ? 'الاسم المطابق لتصنيف المنتجات في المتجر' : 'Matches product.category in catalog'}
+                    </small>
+                  </label>
+
+                  <label className="mero-field">
+                    <span>{isAr ? 'المعرّف البرمجي (Slug)' : 'Slug'}</span>
+                    <input
+                      value={editingCategory.slug}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, slug: e.target.value })}
+                      placeholder="e.g. dresses"
+                    />
+                  </label>
+
+                  <label className="mero-field">
+                    <span>{isAr ? 'ترتيب الظهور' : 'Sort Order'}</span>
+                    <input
+                      type="number"
+                      value={editingCategory.sort_order ?? 0}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, sort_order: Number(e.target.value) })}
+                    />
+                  </label>
+
+                  <label className="mero-field">
+                    <span>{isAr ? 'رابط الصورة المباشر (اختياري)' : 'Direct Image URL (Optional)'}</span>
+                    <input
+                      value={editingCategory.image}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, image: e.target.value })}
+                      placeholder="https://... or /products/..."
+                    />
+                  </label>
+                </div>
+
+                <div className="mero-checks my-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[#49343f]">
+                    <input
+                      type="checkbox"
+                      checked={editingCategory.is_published !== false}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, is_published: e.target.checked })}
+                    />
+                    <span>{isAr ? 'منشور ومعروض على الصفحة الرئيسية' : 'Published on Homepage'}</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2 mt-4 pt-3 border-t">
+                  <button type="submit" disabled={loading || categoryUploading} className="solid-button text-xs py-2 px-4 flex items-center gap-1.5">
+                    <Save size={14} />
+                    <span>{isAr ? 'حفظ التعديلات' : 'Save Category'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCategory(null)}
+                    className="outline-button text-xs py-2 px-4"
+                  >
+                    {isAr ? 'إلغاء' : 'Cancel'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Categories Table / Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+              {adminCategories.length === 0 ? (
+                <div className="mero-empty col-span-full">
+                  {isAr ? 'لا توجد تصنيفات مسجلة.' : 'No categories available.'}
+                </div>
+              ) : (
+                adminCategories.map((cat, idx) => (
+                  <article
+                    key={cat.slug || cat.filter}
+                    className="border bg-white p-4 flex flex-col justify-between shadow-xs transition-shadow hover:shadow-sm"
+                  >
+                    <div className="flex items-center gap-3.5 mb-3">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border border-[#c4a46d] bg-[#fbf1e8] flex-shrink-0">
+                        <img
+                          src={cat.image || '/products/embroidered-dress.svg'}
+                          alt={cat.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-[#f5efec] text-[#49343f] px-1.5 py-0.5 font-semibold">
+                            #{cat.sort_order ?? idx + 1}
+                          </span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 font-medium ${
+                              cat.is_published !== false
+                                ? 'bg-[#edf7ed] text-[#1e4620]'
+                                : 'bg-[#f7eded] text-[#5e2020]'
+                            }`}
+                          >
+                            {cat.is_published !== false
+                              ? isAr
+                                ? 'منشور'
+                                : 'Published'
+                              : isAr
+                              ? 'مسودة'
+                              : 'Draft'}
+                          </span>
+                        </div>
+                        <h4 className="font-serif font-medium text-base text-[#49343f] mt-1 truncate">
+                          {isAr ? cat.nameAr : cat.name}
+                        </h4>
+                        <p className="text-xs text-[#806f77] truncate">
+                          {isAr ? cat.name : cat.nameAr}
+                        </p>
+                        <small className="text-[10px] text-[#9c8993] block mt-0.5">
+                          Filter: <span className="font-mono">{cat.filter}</span>
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCategoryPublished(cat)}
+                        className="text-[#7d6b73] hover:text-[#49343f] underline text-[11px]"
+                      >
+                        {cat.is_published !== false
+                          ? isAr
+                            ? 'إخفاء من الرئيسية'
+                            : 'Hide from Home'
+                          : isAr
+                          ? 'عرض في الرئيسية'
+                          : 'Show on Home'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditCategory(cat)}
+                        className="solid-button text-xs py-1.5 px-3 flex items-center gap-1"
+                      >
+                        <span>{isAr ? 'تعديل واستبدال الصورة' : 'Edit & Replace Image'}</span>
                       </button>
                     </div>
                   </article>

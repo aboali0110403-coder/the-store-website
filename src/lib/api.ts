@@ -7,6 +7,8 @@ import {
   Coupon,
   Order,
   CustomDesignRequest,
+  CategoryItem,
+  initialCategories,
   initialArtisanProducts,
   initialShippingRates,
   initialCoupons,
@@ -534,6 +536,193 @@ export async function adminUpsertCoupon(coupon: {
 export async function adminDeleteCoupon(id: string): Promise<void> {
   const { error } = await supabase.from('coupons').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ==========================================
+// CATEGORIES MANAGEMENT (Explore by Category)
+// ==========================================
+
+const CATEGORIES_CACHE_KEY = 'mero_cached_categories';
+
+/**
+ * Fetch published categories for homepage and navigation
+ */
+export async function fetchCategories(): Promise<CategoryItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_published', true)
+      .order('sort_order', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      const mapped: CategoryItem[] = data.map((row: any) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name_en,
+        nameAr: row.name_ar,
+        filter: row.filter,
+        image: row.image_url,
+        description: row.description_en || '',
+        descriptionAr: row.description_ar || '',
+        sort_order: row.sort_order ?? 0,
+        is_published: row.is_published !== false,
+      }));
+      try {
+        localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mapped));
+      } catch {}
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Categories query note:', err);
+  }
+
+  // Check local cache if admin edited offline or before remote table migration
+  try {
+    const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
+  return initialCategories;
+}
+
+/**
+ * Admin: retrieve all categories (including unpublished)
+ */
+export async function adminGetCategories(): Promise<CategoryItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data.map((row: any) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name_en,
+        nameAr: row.name_ar,
+        filter: row.filter,
+        image: row.image_url,
+        description: row.description_en || '',
+        descriptionAr: row.description_ar || '',
+        sort_order: row.sort_order ?? 0,
+        is_published: row.is_published !== false,
+      }));
+    }
+  } catch (err) {
+    console.warn('Admin categories query note:', err);
+  }
+
+  try {
+    const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
+  return initialCategories;
+}
+
+/**
+ * Admin: insert or update category
+ */
+export async function adminUpsertCategory(category: CategoryItem): Promise<CategoryItem> {
+  const payload = {
+    slug: category.slug,
+    name_en: category.name,
+    name_ar: category.nameAr,
+    filter: category.filter,
+    image_url: category.image,
+    description_en: category.description || '',
+    description_ar: category.descriptionAr || '',
+    sort_order: category.sort_order ?? 0,
+    is_published: category.is_published !== false,
+    updated_at: new Date().toISOString(),
+  };
+
+  let savedItem: CategoryItem = { ...category };
+
+  try {
+    if (category.id) {
+      const { data, error } = await supabase
+        .from('categories')
+        .update(payload)
+        .eq('id', category.id)
+        .select()
+        .single();
+      if (!error && data) {
+        savedItem = {
+          id: data.id,
+          slug: data.slug,
+          name: data.name_en,
+          nameAr: data.name_ar,
+          filter: data.filter,
+          image: data.image_url,
+          description: data.description_en,
+          descriptionAr: data.description_ar,
+          sort_order: data.sort_order,
+          is_published: data.is_published,
+        };
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('categories')
+        .upsert([payload], { onConflict: 'slug' })
+        .select()
+        .single();
+      if (!error && data) {
+        savedItem = {
+          id: data.id,
+          slug: data.slug,
+          name: data.name_en,
+          nameAr: data.name_ar,
+          filter: data.filter,
+          image: data.image_url,
+          description: data.description_en,
+          descriptionAr: data.description_ar,
+          sort_order: data.sort_order,
+          is_published: data.is_published,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase categories update note:', err);
+  }
+
+  // Sync to local cache so changes immediately take effect
+  try {
+    const current = await adminGetCategories();
+    const updated = current.map((c) => (c.slug === savedItem.slug ? { ...c, ...savedItem } : c));
+    if (!updated.some((c) => c.slug === savedItem.slug)) {
+      updated.push(savedItem);
+    }
+    localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(updated));
+  } catch {}
+
+  return savedItem;
+}
+
+/**
+ * Admin: delete category
+ */
+export async function adminDeleteCategory(idOrSlug: string): Promise<void> {
+  try {
+    await supabase.from('categories').delete().or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`);
+  } catch {}
+
+  try {
+    const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      const filtered = parsed.filter((c: CategoryItem) => c.id !== idOrSlug && c.slug !== idOrSlug);
+      localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(filtered));
+    }
+  } catch {}
 }
 
 // Orders & Status History & Payment Transactions

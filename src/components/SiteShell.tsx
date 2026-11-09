@@ -17,12 +17,14 @@ import {
   Product,
   CartItem,
   ShippingRate,
+  CategoryItem,
+  initialCategories,
   readStorage,
   writeStorage,
   copy,
   initialArtisanProducts,
 } from '../lib/store';
-import { fetchCatalog, fetchShippingRates } from '../lib/api';
+import { fetchCatalog, fetchShippingRates, fetchCategories } from '../lib/api';
 import { formatEGP, mergeCartItems } from '../lib/commerceLogic';
 
 interface BoutiqueContextType {
@@ -39,10 +41,12 @@ interface BoutiqueContextType {
   toggleWishlist: (productId: string) => void;
   isWishlisted: (productId: string) => boolean;
   products: Product[];
+  categories: CategoryItem[];
   shippingRates: ShippingRate[];
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   refreshCatalog: () => Promise<void>;
+  refreshCategories: () => Promise<void>;
   loadingCatalog: boolean;
 }
 
@@ -59,16 +63,31 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [cart, setCart] = useState<CartItem[]>(() => readStorage<CartItem[]>('mero_cart', []));
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage<string[]>('mero_wishlist', []));
   const [products, setProducts] = useState<Product[]>(initialArtisanProducts);
+  const [categories, setCategories] = useState<CategoryItem[]>(initialCategories);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
 
+  const loadCategoriesData = async () => {
+    try {
+      const cats = await fetchCategories();
+      if (cats && cats.length > 0) setCategories(cats);
+    } catch (e) {
+      console.warn('Categories load note:', e);
+    }
+  };
+
   const loadData = async () => {
     setLoadingCatalog(true);
     try {
-      const [prods, rates] = await Promise.all([fetchCatalog(), fetchShippingRates()]);
+      const [prods, rates, cats] = await Promise.all([
+        fetchCatalog(),
+        fetchShippingRates(),
+        fetchCategories(),
+      ]);
       if (prods && prods.length > 0) setProducts(prods);
       if (rates && rates.length > 0) setShippingRates(rates);
+      if (cats && cats.length > 0) setCategories(cats);
     } catch (e) {
       console.warn('Data load warning:', e);
     } finally {
@@ -177,10 +196,12 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         toggleWishlist,
         isWishlisted,
         products,
+        categories,
         shippingRates,
         isCartOpen,
         setIsCartOpen,
         refreshCatalog: loadData,
+        refreshCategories: loadCategoriesData,
         loadingCatalog,
       }}
     >

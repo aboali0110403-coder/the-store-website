@@ -2,11 +2,11 @@ import React from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Sparkles, Heart, Plus } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
-import { categories, collections, copy } from '../lib/store';
+import { collections, copy } from '../lib/store';
 import { formatEGP } from '../lib/commerceLogic';
 
 export default function Home() {
-  const { language, products, toggleWishlist, isWishlisted, addToBag } = useBoutique();
+  const { language, products, categories, toggleWishlist, isWishlisted, addToBag } = useBoutique();
   const isAr = language === 'ar';
   const t = copy[language];
 

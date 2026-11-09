@@ -414,14 +414,29 @@ export const initialCoupons: Coupon[] = [
   { code: 'ATELIER250', discount_type: 'fixed', discount_value: 250, min_order_egp: 2500, is_active: true },
 ];
 
-export const categories = [
-  { name: 'Embroidered Dresses', nameAr: 'فساتين مطرزة', filter: 'Dresses', image: imageUrls.lavender },
-  { name: 'Abayas', nameAr: 'عبايات', filter: 'Abayas', image: imageUrls.heritage },
-  { name: 'Kaftans', nameAr: 'قفاطين', filter: 'Kaftans', image: imageUrls.golden },
-  { name: 'Embroidered Tops', nameAr: 'قمصان مطرزة', filter: 'Tops', image: imageUrls.top },
-  { name: 'Two-Piece Sets', nameAr: 'أطقم من قطعتين', filter: 'Sets', image: imageUrls.ivory },
-  { name: 'Exclusive Pieces', nameAr: 'قطع حصرية', filter: 'Exclusive Pieces', image: imageUrls.hero },
-] as const;
+export interface CategoryItem {
+  id?: string;
+  slug: string;
+  name: string;
+  nameAr: string;
+  filter: string;
+  image: string;
+  description?: string;
+  descriptionAr?: string;
+  sort_order?: number;
+  is_published?: boolean;
+}
+
+export const initialCategories: CategoryItem[] = [
+  { slug: 'dresses', name: 'Embroidered Dresses', nameAr: 'فساتين مطرزة', filter: 'Dresses', image: imageUrls.lavender, sort_order: 1, is_published: true },
+  { slug: 'abayas', name: 'Abayas', nameAr: 'عبايات', filter: 'Abayas', image: imageUrls.heritage, sort_order: 2, is_published: true },
+  { slug: 'kaftans', name: 'Kaftans', nameAr: 'قفاطين', filter: 'Kaftans', image: imageUrls.golden, sort_order: 3, is_published: true },
+  { slug: 'tops', name: 'Embroidered Tops', nameAr: 'قمصان مطرزة', filter: 'Tops', image: imageUrls.top, sort_order: 4, is_published: true },
+  { slug: 'sets', name: 'Two-Piece Sets', nameAr: 'أطقم من قطعتين', filter: 'Sets', image: imageUrls.ivory, sort_order: 5, is_published: true },
+  { slug: 'exclusive-pieces', name: 'Exclusive Pieces', nameAr: 'قطع حصرية', filter: 'Exclusive Pieces', image: imageUrls.hero, sort_order: 6, is_published: true },
+];
+
+export const categories: CategoryItem[] = initialCategories;
 
 export const collections = [
   {

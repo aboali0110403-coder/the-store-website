@@ -32,6 +32,54 @@ CREATE POLICY "Admins can view admin_users"
   TO authenticated
   USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
 
+-- 2.5 CATEGORIES TABLE
+CREATE TABLE IF NOT EXISTS public.categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug text NOT NULL UNIQUE,
+  name_en text NOT NULL,
+  name_ar text NOT NULL,
+  filter text NOT NULL UNIQUE,
+  image_url text NOT NULL,
+  description_en text,
+  description_ar text,
+  sort_order integer NOT NULL DEFAULT 0,
+  is_published boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read published categories"
+  ON public.categories
+  FOR SELECT
+  TO public
+  USING (is_published = true OR EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+
+CREATE POLICY "Admin full access on categories"
+  ON public.categories
+  FOR ALL
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()));
+
+-- Initial seed for signature categories
+INSERT INTO public.categories (slug, name_en, name_ar, filter, image_url, sort_order, is_published)
+VALUES
+  ('dresses', 'Embroidered Dresses', 'فساتين مطرزة', 'Dresses', '/products/embroidered-dress.svg', 1, true),
+  ('abayas', 'Abayas', 'عبايات', 'Abayas', '/products/heritage-abaya.svg', 2, true),
+  ('kaftans', 'Kaftans', 'قفاطين', 'Kaftans', '/products/golden-kaftan.svg', 3, true),
+  ('tops', 'Embroidered Tops', 'قمصان مطرزة', 'Tops', '/products/embroidered-top.svg', 4, true),
+  ('sets', 'Two-Piece Sets', 'أطقم من قطعتين', 'Sets', '/products/ivory-set.svg', 5, true),
+  ('exclusive-pieces', 'Exclusive Pieces', 'قطع حصرية', 'Exclusive Pieces', '/products/embroidered-dress.svg', 6, true)
+ON CONFLICT (slug) DO UPDATE
+SET
+  name_en = EXCLUDED.name_en,
+  name_ar = EXCLUDED.name_ar,
+  filter = EXCLUDED.filter,
+  image_url = EXCLUDED.image_url,
+  sort_order = EXCLUDED.sort_order;
+
 -- 3. PRODUCTS TABLE
 CREATE TABLE IF NOT EXISTS public.products (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
