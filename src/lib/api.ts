@@ -629,7 +629,8 @@ export async function adminGetCategories(): Promise<CategoryItem[]> {
 }
 
 /**
- * Admin: insert or update category
+ * Admin: insert or update category in database.
+ * Throws DB error if Supabase fails; updates cache ONLY upon success.
  */
 export async function adminUpsertCategory(category: CategoryItem): Promise<CategoryItem> {
   const payload = {
@@ -647,54 +648,58 @@ export async function adminUpsertCategory(category: CategoryItem): Promise<Categ
 
   let savedItem: CategoryItem = { ...category };
 
-  try {
-    if (category.id) {
-      const { data, error } = await supabase
-        .from('categories')
-        .update(payload)
-        .eq('id', category.id)
-        .select()
-        .single();
-      if (!error && data) {
-        savedItem = {
-          id: data.id,
-          slug: data.slug,
-          name: data.name_en,
-          nameAr: data.name_ar,
-          filter: data.filter,
-          image: data.image_url,
-          description: data.description_en,
-          descriptionAr: data.description_ar,
-          sort_order: data.sort_order,
-          is_published: data.is_published,
-        };
-      }
-    } else {
-      const { data, error } = await supabase
-        .from('categories')
-        .upsert([payload], { onConflict: 'slug' })
-        .select()
-        .single();
-      if (!error && data) {
-        savedItem = {
-          id: data.id,
-          slug: data.slug,
-          name: data.name_en,
-          nameAr: data.name_ar,
-          filter: data.filter,
-          image: data.image_url,
-          description: data.description_en,
-          descriptionAr: data.description_ar,
-          sort_order: data.sort_order,
-          is_published: data.is_published,
-        };
-      }
+  if (category.id) {
+    const { data, error } = await supabase
+      .from('categories')
+      .update(payload)
+      .eq('id', category.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Supabase database error updating category: ${error.message}`);
     }
-  } catch (err) {
-    console.warn('Supabase categories update note:', err);
+    if (data) {
+      savedItem = {
+        id: data.id,
+        slug: data.slug,
+        name: data.name_en,
+        nameAr: data.name_ar,
+        filter: data.filter,
+        image: data.image_url,
+        description: data.description_en,
+        descriptionAr: data.description_ar,
+        sort_order: data.sort_order,
+        is_published: data.is_published,
+      };
+    }
+  } else {
+    const { data, error } = await supabase
+      .from('categories')
+      .upsert([payload], { onConflict: 'slug' })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Supabase database error creating category: ${error.message}`);
+    }
+    if (data) {
+      savedItem = {
+        id: data.id,
+        slug: data.slug,
+        name: data.name_en,
+        nameAr: data.name_ar,
+        filter: data.filter,
+        image: data.image_url,
+        description: data.description_en,
+        descriptionAr: data.description_ar,
+        sort_order: data.sort_order,
+        is_published: data.is_published,
+      };
+    }
   }
 
-  // Sync to local cache so changes immediately take effect
+  // Update local cache ONLY upon verified database success
   try {
     const current = await adminGetCategories();
     const updated = current.map((c) => (c.slug === savedItem.slug ? { ...c, ...savedItem } : c));
@@ -708,13 +713,35 @@ export async function adminUpsertCategory(category: CategoryItem): Promise<Categ
 }
 
 /**
- * Admin: delete category
+ * Admin: delete category with assigned products safety verification.
+ * Fails if products are assigned to this category or if Supabase DB rejects.
  */
-export async function adminDeleteCategory(idOrSlug: string): Promise<void> {
-  try {
-    await supabase.from('categories').delete().or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`);
-  } catch {}
+export async function adminDeleteCategory(idOrSlug: string, categoryFilter?: string): Promise<void> {
+  // 1. Guard check: prevent deletion if products are linked to this category
+  if (categoryFilter) {
+    const { count, error: countErr } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category', categoryFilter);
 
+    if (!countErr && count && count > 0) {
+      throw new Error(
+        `Cannot delete category "${categoryFilter}": ${count} product(s) are currently assigned to it. Reassign or delete those products first.`
+      );
+    }
+  }
+
+  // 2. Perform DB deletion
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`);
+
+  if (error) {
+    throw new Error(`Supabase database error deleting category: ${error.message}`);
+  }
+
+  // 3. Update local cache ONLY upon confirmed database success
   try {
     const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
     if (cached) {
@@ -724,6 +751,7 @@ export async function adminDeleteCategory(idOrSlug: string): Promise<void> {
     }
   } catch {}
 }
+
 
 // Orders & Status History & Payment Transactions
 export async function adminGetOrders(): Promise<Order[]> {
@@ -797,186 +825,8 @@ export async function adminUpdateCustomDesignStatus(
 // Public Order Status Lookup & Tracking
 // -----------------------------------------------------------------------------
 
-export const initialSampleOrders: Order[] = [
-  {
-    id: 'ord-sample-1001',
-    order_number: 'MERO-1001',
-    customer_name: 'Yasmin Al-Alfy',
-    phone: '01012345678',
-    email: 'yasmin@example.com',
-    governorate: 'Cairo',
-    city_area: 'Zamalek',
-    address: '15 Mohammed Mazhar St, Apt 4B',
-    payment_method: 'cash_on_delivery',
-    status: 'in_production',
-    subtotal_egp: 4850,
-    shipping_egp: 60,
-    total_egp: 4910,
-    admin_notes: 'Artisan embroidery in progress. Siwan metallic gold and lotus stitch.',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    items: [
-      {
-        id: 'item-1001-1',
-        order_id: 'ord-sample-1001',
-        product_id: 'f87a8101-3142-498c-8547-5121b6d00001',
-        product_name_en: 'Lotus Heirloom Silk-Linen Dress',
-        product_name_ar: 'فستان كتان وحرير مطرز بزهرة اللوتس',
-        size: 'M',
-        color: 'Dusty Rose',
-        quantity: 1,
-        unit_price_egp: 4850,
-      },
-    ],
-    status_history: [
-      {
-        id: 'hist-1',
-        order_id: 'ord-sample-1001',
-        status: 'pending',
-        notes: 'Order received via boutique online storefront',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-      },
-      {
-        id: 'hist-2',
-        order_id: 'ord-sample-1001',
-        status: 'confirmed',
-        notes: 'Atelier concierge confirmed sizing and Zamalek delivery address',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      },
-      {
-        id: 'hist-3',
-        order_id: 'ord-sample-1001',
-        status: 'in_production',
-        notes: 'Gilded needlework and silk-linen tailoring underway at Cairo workshop',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-      },
-    ],
-  },
-  {
-    id: 'ord-sample-1002',
-    order_number: 'MERO-1002',
-    customer_name: 'Nouran El-Gamil',
-    phone: '01123456789',
-    email: 'nouran@example.com',
-    governorate: 'Alexandria',
-    city_area: 'Stanley',
-    address: '22 Corniche Road, Villa 3',
-    payment_method: 'cash_on_delivery',
-    status: 'shipped',
-    subtotal_egp: 6400,
-    shipping_egp: 85,
-    total_egp: 6485,
-    admin_notes: 'Dispatched via Boutique Courier Express. Tracking #BSTA-99214',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 60).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    items: [
-      {
-        id: 'item-1002-1',
-        order_id: 'ord-sample-1002',
-        product_id: 'f87a8101-3142-498c-8547-5121b6d00003',
-        product_name_en: 'Siwa Golden Thread Linen Kaftan',
-        product_name_ar: 'قفطان واحة سيوة بالخيوط المذهبة',
-        size: 'Free Size',
-        color: 'Siwan Gold & Raw Ecru',
-        quantity: 1,
-        unit_price_egp: 6400,
-      },
-    ],
-    status_history: [
-      {
-        id: 'hist-4',
-        order_id: 'ord-sample-1002',
-        status: 'pending',
-        notes: 'Order placed by customer',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 60).toISOString(),
-      },
-      {
-        id: 'hist-5',
-        order_id: 'ord-sample-1002',
-        status: 'confirmed',
-        notes: 'Order confirmed and verified',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-      },
-      {
-        id: 'hist-6',
-        order_id: 'ord-sample-1002',
-        status: 'in_production',
-        notes: 'Siwan gold embroidery completed and inspected',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
-      },
-      {
-        id: 'hist-7',
-        order_id: 'ord-sample-1002',
-        status: 'shipped',
-        notes: 'Handed to courier for delivery to Alexandria',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-      },
-    ],
-  },
-  {
-    id: 'ord-sample-1003',
-    order_number: 'MERO-1003',
-    customer_name: 'Mariam Mansour',
-    phone: '01234567890',
-    email: 'mariam@example.com',
-    governorate: 'Giza',
-    city_area: 'Sheikh Zayed',
-    address: 'Al-Bostan District, Compound 12, Unit 8',
-    payment_method: 'cash_on_delivery',
-    status: 'delivered',
-    subtotal_egp: 5200,
-    shipping_egp: 60,
-    total_egp: 5260,
-    admin_notes: 'Delivered successfully. Customer inspected and paid in cash.',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    items: [
-      {
-        id: 'item-1003-1',
-        order_id: 'ord-sample-1003',
-        product_id: 'f87a8101-3142-498c-8547-5121b6d00002',
-        product_name_en: 'Heritage Noir Geometric Abaya',
-        product_name_ar: 'عباية التراث الأسود بتطريز هندسي',
-        size: '56',
-        color: 'Midnight Onyx',
-        quantity: 1,
-        unit_price_egp: 5200,
-      },
-    ],
-  },
-  {
-    id: 'ord-sample-1004',
-    order_number: 'MERO-1004',
-    customer_name: 'Laila El-Kady',
-    phone: '01099887766',
-    email: 'laila@example.com',
-    governorate: 'Qalyubia',
-    city_area: 'Banha',
-    address: 'Al-Ahram St, Building 14',
-    payment_method: 'cash_on_delivery',
-    status: 'confirmed',
-    subtotal_egp: 2950,
-    shipping_egp: 75,
-    total_egp: 3025,
-    admin_notes: 'Confirmed by phone. Preparing voile fabric and jasmine motif.',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 14).toISOString(),
-    items: [
-      {
-        id: 'item-1004-1',
-        order_id: 'ord-sample-1004',
-        product_id: 'f87a8101-3142-498c-8547-5121b6d00005',
-        product_name_en: 'Jasmine Bloom Voile Tunic Top',
-        product_name_ar: 'قميص فوال قطني بتطريز زهر الياسمين',
-        size: 'S',
-        color: 'Crisp White',
-        quantity: 1,
-        unit_price_egp: 2950,
-      },
-    ],
-  },
-];
-
+// Production Mode: Zero fake / sample orders.
+// All order queries are executed against live Supabase database via secure RPC or stored device orders.
 const CUSTOMER_ORDERS_STORAGE_KEY = 'mero_customer_orders';
 
 /**
@@ -1051,10 +901,12 @@ export async function uploadProductImage(
 /**
  * Direct file upload for customer custom design reference images ('design-references' bucket).
  * Validates JPEG, PNG, WebP and enforces 5MB limit.
+ * PRIVACY: The 'design-references' bucket is strictly PRIVATE. This function returns the
+ * relative storage path only, NEVER a public URL.
  */
 export async function uploadDesignReferenceImage(
   file: File
-): Promise<{ url: string; path: string }> {
+): Promise<{ path: string }> {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(file.type)) {
     throw new Error('Invalid file format. Only JPEG, PNG, and WebP images are allowed.');
@@ -1079,11 +931,29 @@ export async function uploadDesignReferenceImage(
     throw new Error(`Reference image upload failed: ${uploadError.message}`);
   }
 
-  const { data } = supabase.storage.from('design-references').getPublicUrl(path);
   return {
-    url: data.publicUrl || path,
     path,
   };
+}
+
+/**
+ * Generates a short-lived signed URL for an authorized administrator to view
+ * private bespoke reference images from the 'design-references' storage bucket.
+ */
+export async function getSignedDesignReferenceUrl(
+  path: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  const { data, error } = await supabase.storage
+    .from('design-references')
+    .createSignedUrl(cleanPath, expiresInSeconds);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message || 'Could not generate secure view URL for reference image.');
+  }
+
+  return data.signedUrl;
 }
 
 /**
@@ -1103,8 +973,8 @@ export async function deleteStorageFile(
 /**
  * Public-facing Order Status Lookup function.
  * Queries Supabase database directly via lookup_public_order RPC.
- * Enforces rate limiting and strictly retrieves live database records.
- * NEVER returns hardcoded demo orders in production.
+ * Enforces rate limiting, phone verification, and returns sanitized data.
+ * NEVER returns hardcoded demo orders or leaks private customer information.
  */
 export async function lookupPublicOrder(
   rawOrderNumber: string,
@@ -1113,19 +983,21 @@ export async function lookupPublicOrder(
   const cleanNumber = (rawOrderNumber || '').trim().toUpperCase();
   if (!cleanNumber) return null;
 
-  // Rate-limiting check to prevent automated scraping of customer orders
-  const rateLimit = checkGuestRateLimit(`order_lookup_${cleanNumber}`, 20, 5 * 60 * 1000);
+  // Rate-limiting check to prevent brute-force order enumeration
+  const rateLimit = checkGuestRateLimit(`order_lookup_${cleanNumber}`, 15, 5 * 60 * 1000);
   if (!rateLimit.allowed) {
     throw new Error(
       `Rate limit exceeded. Please wait ${rateLimit.retryAfterSeconds}s before looking up again.`
     );
   }
 
-  // 1. Primary: Live database lookup via public secure RPC
+  const cleanPhone = phoneVerification ? phoneVerification.replace(/\D/g, '') : '';
+
+  // 1. Primary: Live database lookup via public secure RPC (with phone verification)
   try {
     const { data, error } = await supabase.rpc('lookup_public_order', {
       p_order_number: cleanNumber,
-      p_phone: phoneVerification ? phoneVerification.trim() : null,
+      p_phone: cleanPhone || null,
     });
 
     if (!error && data) {
@@ -1156,7 +1028,7 @@ export async function lookupPublicOrder(
     console.warn('Live order lookup note:', err);
   }
 
-  // 2. Direct Supabase query for authenticated admin
+  // 2. Direct Supabase query for authenticated admin session ONLY
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData?.session) {
@@ -1178,15 +1050,22 @@ export async function lookupPublicOrder(
     // Handled gracefully
   }
 
-  // 3. Fallback to customer's order placed on this specific device if offline
-  const customerOrders = getCustomerOrders();
-  const localMatch = customerOrders.find(
-    (o) =>
-      o.order_number.toUpperCase() === cleanNumber ||
-      o.order_number.toUpperCase() === `MERO-${cleanNumber}`
-  );
-  if (localMatch) {
-    return localMatch;
+  // 3. Fallback: ONLY if phone was verified or this device has matching local order with verified phone
+  if (cleanPhone && cleanPhone.length >= 4) {
+    const customerOrders = getCustomerOrders();
+    const localMatch = customerOrders.find((o) => {
+      const numMatch =
+        o.order_number.toUpperCase() === cleanNumber ||
+        o.order_number.toUpperCase() === `MERO-${cleanNumber}`;
+      const localPhoneDigits = (o.phone || '').replace(/\D/g, '');
+      const phoneMatch =
+        localPhoneDigits.endsWith(cleanPhone) || cleanPhone.endsWith(localPhoneDigits);
+      return numMatch && phoneMatch;
+    });
+
+    if (localMatch) {
+      return localMatch;
+    }
   }
 
   return null;

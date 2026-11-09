@@ -115,8 +115,8 @@ export default function TrackOrder() {
         setOrder(null);
         setErrorMessage(
           isAr
-            ? `لم نعثر على طلب مسجل بالرقم "${validation.normalized}"${phoneParam ? ' أو أن رقم الهاتف غير متطابق' : ''}. يرجى التحقق من الرقم أو التواصل مع خدمة عملاء الأتيليه.`
-            : `No order found with reference "${validation.normalized}"${phoneParam ? ' or phone verification did not match' : ''}. Please verify the reference or contact atelier concierge.`
+            ? 'تعذر التحقق من الطلب أو مطابقة رقم الهاتف المسجل. يرجى التأكد من البيانات أو التواصل مع خدمة عملاء الأتيليه.'
+            : 'Unable to verify order details. Please verify your order number and registered phone number, or contact atelier concierge.'
         );
       } else {
         setOrder(result);
@@ -142,6 +142,14 @@ export default function TrackOrder() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phoneQuery.trim()) {
+      setErrorMessage(
+        isAr
+          ? 'يرجى إدخال رقم الهاتف المسجل لتأكيد هويتك وحماية خصوصية بيانات الطلب.'
+          : 'Please enter your registered phone number to verify identity and protect order privacy.'
+      );
+      return;
+    }
     performLookup(orderQuery, phoneQuery);
   };
 
@@ -248,7 +256,7 @@ export default function TrackOrder() {
                   type="tel"
                   value={phoneQuery}
                   onChange={(e) => setPhoneQuery(e.target.value)}
-                  placeholder={isAr ? 'رقم الهاتف (اختياري للتحقق والخصوصية)' : 'Phone number (optional verification)'}
+                  placeholder={isAr ? 'رقم الهاتف المسجل (إلزامي للتحقق والخصوصية)' : 'Registered phone number (required for verification)'}
                   className="search-input"
                   aria-label={isAr ? 'رقم الهاتف للتحقق' : 'Phone Number for Verification'}
                   autoComplete="tel"

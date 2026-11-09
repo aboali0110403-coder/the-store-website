@@ -45,6 +45,7 @@ import {
   adminUpsertCategory,
   adminDeleteCategory,
   uploadProductImage,
+  getSignedDesignReferenceUrl,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
 import { CategoryItem } from '../lib/store';
@@ -85,6 +86,8 @@ export default function Admin() {
   const [customRequests, setCustomRequests] = useState<any[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [viewingRefImage, setViewingRefImage] = useState<string | null>(null);
+  const [loadingRefImage, setLoadingRefImage] = useState(false);
 
   // Forms
   const [productForm, setProductForm] = useState({
@@ -599,6 +602,30 @@ export default function Admin() {
       );
     } catch (err: any) {
       setErrorMessage(err?.message || 'Could not update category status.');
+    }
+  };
+
+  const handleDeleteCategory = async (cat: CategoryItem) => {
+    const confirmed = window.confirm(
+      isAr
+        ? `هل تريد بالتأكيد حذف تصنيف "${cat.nameAr || cat.name}"؟`
+        : `Are you sure you want to delete category "${cat.name}"?`
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    setCategoryError('');
+    try {
+      await adminDeleteCategory(cat.id || cat.slug, cat.filter);
+      setStatusMessage(
+        isAr ? 'تم حذف التصنيف بنجاح من قاعدة البيانات.' : 'Category deleted successfully from database.'
+      );
+      await loadDashboardData();
+      await refreshCategories();
+    } catch (err: any) {
+      setCategoryError(err?.message || (isAr ? 'فشل حذف التصنيف.' : 'Failed to delete category.'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1434,19 +1461,31 @@ export default function Admin() {
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t text-xs">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCategoryPublished(cat)}
-                        className="text-[#7d6b73] hover:text-[#49343f] underline text-[11px]"
-                      >
-                        {cat.is_published !== false
-                          ? isAr
-                            ? 'إخفاء من الرئيسية'
-                            : 'Hide from Home'
-                          : isAr
-                          ? 'عرض في الرئيسية'
-                          : 'Show on Home'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCategoryPublished(cat)}
+                          className="text-[#7d6b73] hover:text-[#49343f] underline text-[11px]"
+                        >
+                          {cat.is_published !== false
+                            ? isAr
+                              ? 'إخفاء'
+                              : 'Hide'
+                            : isAr
+                            ? 'إظهار'
+                            : 'Show'}
+                        </button>
+                        <span className="text-[#c4a46d]">·</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="text-[#b34040] hover:text-[#8a1c1c] text-[11px] flex items-center gap-0.5"
+                          title={isAr ? 'حذف التصنيف' : 'Delete Category'}
+                        >
+                          <Trash2 size={12} />
+                          <span>{isAr ? 'حذف' : 'Delete'}</span>
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleEditCategory(cat)}
@@ -2016,17 +2055,38 @@ export default function Admin() {
                   </div>
 
                   {r.reference_image_urls && r.reference_image_urls.length > 0 && (
-                    <div className="flex gap-2 mt-1">
-                      {r.reference_image_urls.map((url: string, i: number) => (
-                        <a
+                    <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-[rgba(73,52,63,0.1)]">
+                      <span className="text-xs text-[#49343f] font-medium flex items-center gap-1">
+                        <ImageIcon size={12} />
+                        {isAr ? 'الصور المرجعية:' : 'Reference Photos:'}
+                      </span>
+                      {r.reference_image_urls.map((pathOrUrl: string, i: number) => (
+                        <button
                           key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-[#947381] underline"
+                          type="button"
+                          disabled={loadingRefImage}
+                          onClick={async () => {
+                            try {
+                              setLoadingRefImage(true);
+                              if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+                                setViewingRefImage(pathOrUrl);
+                              } else {
+                                const signedUrl = await getSignedDesignReferenceUrl(pathOrUrl, 3600);
+                                setViewingRefImage(signedUrl);
+                              }
+                            } catch (err: any) {
+                              setErrorMessage(
+                                err?.message ||
+                                  (isAr ? 'تعذر تحميل الصورة الخاصة' : 'Could not load private reference photo')
+                              );
+                            } finally {
+                              setLoadingRefImage(false);
+                            }
+                          }}
+                          className="px-2 py-0.5 bg-[#f5efec] text-[#49343f] text-xs hover:bg-[#ebdcd5] border border-[rgba(73,52,63,0.15)] flex items-center gap-1 cursor-pointer"
                         >
-                          Photo {i + 1}
-                        </a>
+                          <span>{isAr ? `صورة ${i + 1}` : `Photo ${i + 1}`}</span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -2036,6 +2096,42 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* Lightbox Modal for Private Bespoke Reference Photos */}
+      {viewingRefImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          onClick={() => setViewingRefImage(null)}
+        >
+          <div
+            className="bg-white max-w-2xl w-full p-4 border border-[#c4a46d] shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center pb-2 mb-3 border-b border-[rgba(73,52,63,0.1)]">
+              <h4 className="font-serif font-medium text-sm text-[#49343f]">
+                {isAr ? 'معاينة الصورة المرجعية الخاصة للطلب' : 'Client Private Reference Photo'}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setViewingRefImage(null)}
+                className="p-1 hover:bg-[#f5efec] text-[#49343f] cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto flex items-center justify-center bg-[#faf6f3]">
+              <img
+                src={viewingRefImage}
+                alt="Bespoke Reference"
+                className="max-h-[65vh] w-auto object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

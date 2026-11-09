@@ -107,7 +107,7 @@ export default function CustomDesign() {
         setReferenceItems((prev) =>
           prev.map((item) =>
             item.id === tempId
-              ? { ...item, url: res.url, path: res.path, isUploading: false }
+              ? { ...item, url: res.path, path: res.path, isUploading: false }
               : item
           )
         );
@@ -187,7 +187,7 @@ export default function CustomDesign() {
 
     setSaving(true);
     try {
-      const validUrls = referenceItems.filter((i) => Boolean(i.url)).map((i) => i.url);
+      const validUrls = referenceItems.filter((i) => Boolean(i.path || i.url)).map((i) => i.path || i.url);
       const res = await submitCustomDesignRequest({
         customer_name: form.name,
         phone: form.phone,

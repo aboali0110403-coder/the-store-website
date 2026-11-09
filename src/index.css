@@ -656,14 +656,15 @@ img { display: block; max-width: 100%; }
 
 .tracking-search-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  max-width: 560px;
+  max-width: 780px;
   margin: 0 auto 20px;
 }
 
 .search-input-wrap {
   position: relative;
-  flex: 1;
+  flex: 1 1 240px;
 }
 
 .search-input-wrap .search-icon {

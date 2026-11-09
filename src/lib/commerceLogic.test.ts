@@ -269,3 +269,30 @@ test('computeOrderMilestones derives correct 5-step progression states', () => {
   assert.equal(deliveredMilestones[4].progress, 'current');
 });
 
+test('multi-item mixed cart validates ready stock while exempting made_to_order', () => {
+  const catalog = new Map([
+    ['ready-item', { id: 'ready-item', price_egp: 3000, stock: 2, production_type: 'ready' as const, is_published: true }],
+    ['bespoke-item', { id: 'bespoke-item', price_egp: 7500, stock: 0, production_type: 'made_to_order' as const, is_published: true }],
+    ['limited-item', { id: 'limited-item', price_egp: 6000, stock: 1, production_type: 'limited' as const, is_published: true }],
+  ]);
+
+  // Mixed cart within available limits
+  const validCart = [
+    { productId: 'ready-item', size: 'M', color: 'Black', quantity: 2 },
+    { productId: 'bespoke-item', size: 'Tailored', color: 'Ivory', quantity: 3 }, // 0 stock but made_to_order
+    { productId: 'limited-item', size: 'L', color: 'Gold', quantity: 1 },
+  ];
+  const checkPass = validateStockAvailability(validCart, catalog);
+  assert.equal(checkPass.valid, true);
+
+  // Exceeding ready stock fails
+  const invalidCart = [
+    { productId: 'ready-item', size: 'M', color: 'Black', quantity: 3 }, // only 2 in stock
+    { productId: 'bespoke-item', size: 'Tailored', color: 'Ivory', quantity: 5 },
+  ];
+  const checkFail = validateStockAvailability(invalidCart, catalog);
+  assert.equal(checkFail.valid, false);
+  assert.ok(checkFail.errors[0].includes('Insufficient stock'));
+});
+
+
