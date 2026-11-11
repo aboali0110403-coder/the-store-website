@@ -105,7 +105,7 @@ test('calculateVerifiedSubtotal ignores client-tampered prices', () => {
 test('evaluateCoupon verifies percentages, fixed discounts, and minimum orders', () => {
   const percentageCoupon = {
     code: 'ELEGANCE10',
-    discount_type: 'percent' as const,
+    discount_type: 'percentage' as const,
     discount_value: 10,
     min_order_egp: 1000,
     is_active: true,
@@ -125,6 +125,12 @@ test('evaluateCoupon verifies percentages, fixed discounts, and minimum orders',
   const inactiveCoupon = { ...percentageCoupon, is_active: false };
   assert.equal(evaluateCoupon('ELEGANCE10', 5000, inactiveCoupon).valid, false);
 
+  const expiredCoupon = {
+    ...percentageCoupon,
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  };
+  assert.equal(evaluateCoupon('ELEGANCE10', 5000, expiredCoupon).valid, false);
+
   // Fixed discount
   const fixedCoupon = {
     code: 'MERO200',
@@ -133,6 +139,17 @@ test('evaluateCoupon verifies percentages, fixed discounts, and minimum orders',
     is_active: true,
   };
   assert.equal(evaluateCoupon('MERO200', 1500, fixedCoupon).discount, 200);
+
+  const cappedCoupon = { ...percentageCoupon, max_discount_egp: 300 };
+  assert.equal(evaluateCoupon('ELEGANCE10', 5000, cappedCoupon).discount, 300);
+
+  const futureCoupon = {
+    ...percentageCoupon,
+    starts_at: new Date(Date.now() + 60_000).toISOString(),
+  };
+  assert.equal(evaluateCoupon('ELEGANCE10', 5000, futureCoupon).valid, false);
+  assert.equal(evaluateCoupon('UNKNOWN', 5000, percentageCoupon).valid, false);
+  assert.equal(evaluateCoupon('', 5000, null).valid, false);
 });
 
 test('resolveShippingRate correctly maps governorates and handles unconfigured ones', () => {
@@ -294,5 +311,3 @@ test('multi-item mixed cart validates ready stock while exempting made_to_order'
   assert.equal(checkFail.valid, false);
   assert.ok(checkFail.errors[0].includes('Insufficient stock'));
 });
-
-

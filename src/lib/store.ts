@@ -64,10 +64,12 @@ export interface ShippingRate {
 export interface Coupon {
   id?: string;
   code: string;
-  discount_type: 'percent' | 'fixed';
+  discount_type: 'percentage' | 'fixed';
   discount_value: number;
+  max_discount_egp?: number | null;
   min_order_egp?: number;
   is_active: boolean;
+  starts_at?: string | null;
   expires_at?: string | null;
   created_at?: string;
 }
@@ -410,7 +412,7 @@ export const initialShippingRates: ShippingRate[] = [
 ];
 
 export const initialCoupons: Coupon[] = [
-  { code: 'MERO10', discount_type: 'percent', discount_value: 10, min_order_egp: 2000, is_active: true },
+  { code: 'MERO10', discount_type: 'percentage', discount_value: 10, min_order_egp: 2000, is_active: true },
   { code: 'ATELIER250', discount_type: 'fixed', discount_value: 250, min_order_egp: 2500, is_active: true },
 ];
 

@@ -141,7 +141,7 @@ export default function Admin() {
   const [couponForm, setCouponForm] = useState({
     id: '',
     code: '',
-    discount_type: 'percent' as 'percent' | 'fixed',
+    discount_type: 'percentage' as 'percentage' | 'fixed',
     discount_value: '10',
     min_order_egp: '1500',
     is_active: true,
@@ -506,7 +506,7 @@ export default function Admin() {
       setCouponForm({
         id: '',
         code: '',
-        discount_type: 'percent',
+        discount_type: 'percentage',
         discount_value: '10',
         min_order_egp: '1500',
         is_active: true,
@@ -1888,7 +1888,7 @@ export default function Admin() {
                       setCouponForm({ ...couponForm, discount_type: e.target.value as any })
                     }
                   >
-                    <option value="percent">Percentage (%)</option>
+                    <option value="percentage">Percentage (%)</option>
                     <option value="fixed">Fixed Amount (EGP)</option>
                   </select>
                 </label>
@@ -1936,7 +1936,7 @@ export default function Admin() {
                   <div>
                     <strong>{c.code}</strong>
                     <span className="text-xs text-[#806f77] ml-2">
-                      {c.discount_type === 'percent'
+                      {c.discount_type === 'percentage'
                         ? `${c.discount_value}% off`
                         : `${c.discount_value} EGP off`}
                       {c.min_order_egp ? ` · Min: ${c.min_order_egp} EGP` : ''} ·{' '}

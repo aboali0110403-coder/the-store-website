@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import {
   ArrowLeft,
@@ -60,6 +60,10 @@ export default function Checkout() {
     total: number;
     governorate: string;
   } | null>(null);
+  // Reuse the same key on a network retry so the database returns the original order.
+  const idempotencyKeyRef = useRef(
+    `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`
+  );
 
   // Line items joined with verified product data
   const lineItems = useMemo(
@@ -186,6 +190,7 @@ export default function Checkout() {
           ? `[Applied Coupon: ${appliedCoupon.code}]`
           : undefined,
         payment_method: 'cash_on_delivery',
+        idempotency_key: idempotencyKeyRef.current,
         items: lineItems.map(({ item }) => ({
           product_id: item.productId,
           size: item.size,
@@ -198,7 +203,7 @@ export default function Checkout() {
         order_id: result.order_id,
         order_number: result.order_number,
         customer_name: form.name,
-        total: totals.total,
+        total: result.total_egp,
         governorate: form.governorate,
       });
 
@@ -214,9 +219,9 @@ export default function Checkout() {
         address: form.address,
         payment_method: 'cash_on_delivery',
         status: 'pending',
-        subtotal_egp: totals.subtotal,
-        shipping_egp: totals.shipping,
-        total_egp: totals.total,
+        subtotal_egp: result.subtotal_egp,
+        shipping_egp: result.shipping_egp,
+        total_egp: result.total_egp,
         admin_notes: appliedCoupon ? `Applied Coupon: ${appliedCoupon.code}` : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

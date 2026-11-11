@@ -178,10 +178,14 @@ export async function validateCoupon(
     if (data) {
       const rule = {
         code: data.code,
-        discount_type: data.discount_type || 'percent',
+        // `percent` is accepted only as a read-compatibility alias; the canonical
+        // database/application value is `percentage`.
+        discount_type: data.discount_type === 'percent' ? 'percentage' : data.discount_type || 'percentage',
         discount_value: Number(data.discount_value || data.discount_percent || data.discount_amount || 0),
+        max_discount_egp: data.max_discount_egp == null ? null : Number(data.max_discount_egp),
         min_order_egp: data.min_order_egp ? Number(data.min_order_egp) : undefined,
         is_active: data.is_active !== false,
+        starts_at: data.starts_at || null,
         expires_at: data.expires_at || data.valid_until,
       };
       const evalResult = evaluateCoupon(cleanCode, subtotal, rule);
@@ -211,7 +215,14 @@ export async function submitStoreOrder(params: {
   notes?: string;
   payment_method: 'cash_on_delivery' | 'prepaid' | 'deposit';
   items: Array<{ product_id: string; size: string; color: string; quantity: number }>;
-}): Promise<{ order_id: string; order_number: string }> {
+  idempotency_key: string;
+}): Promise<{
+  order_id: string;
+  order_number: string;
+  subtotal_egp: number;
+  shipping_egp: number;
+  total_egp: number;
+}> {
   // Client rate-limiting check
   const rateLimit = checkGuestRateLimit(`guest_order_${params.phone || 'client'}`);
   if (!rateLimit.allowed) {
@@ -236,6 +247,7 @@ export async function submitStoreOrder(params: {
       color: i.color || '',
       quantity: Math.max(1, Math.min(20, i.quantity)),
     })),
+    p_idempotency_key: params.idempotency_key,
   });
 
   if (error) {
@@ -251,6 +263,9 @@ export async function submitStoreOrder(params: {
   return {
     order_id: result.order_id || result.id || '',
     order_number: result.order_number,
+    subtotal_egp: Number(result.subtotal_egp ?? 0),
+    shipping_egp: Number(result.shipping_egp ?? 0),
+    total_egp: Number(result.total_egp ?? 0),
   };
 }
 
@@ -507,8 +522,9 @@ export async function adminGetCoupons(): Promise<Coupon[]> {
 export async function adminUpsertCoupon(coupon: {
   id?: string;
   code: string;
-  discount_type: 'percent' | 'fixed';
+  discount_type: 'percentage' | 'fixed';
   discount_value: number;
+  max_discount_egp?: number | null;
   min_order_egp?: number;
   is_active: boolean;
   expires_at?: string | null;
@@ -517,6 +533,7 @@ export async function adminUpsertCoupon(coupon: {
     code: coupon.code.toUpperCase(),
     discount_type: coupon.discount_type,
     discount_value: coupon.discount_value,
+    ...(coupon.max_discount_egp !== undefined ? { max_discount_egp: coupon.max_discount_egp } : {}),
     min_order_egp: coupon.min_order_egp || 0,
     is_active: coupon.is_active,
     expires_at: coupon.expires_at || null,
@@ -772,27 +789,12 @@ export async function adminUpdateOrderStatus(
   newStatus: string,
   notes?: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('orders')
-    .update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-      admin_notes: notes || undefined,
-    })
-    .eq('id', orderId);
+  const { error } = await supabase.rpc('admin_update_order_status', {
+    p_order_id: orderId,
+    p_new_status: newStatus,
+    p_note: notes || null,
+  });
   if (error) throw error;
-
-  // Record status history if table exists
-  try {
-    await supabase.from('order_status_history').insert([{
-      order_id: orderId,
-      status: newStatus,
-      notes: notes || `Status updated to ${newStatus}`,
-      created_at: new Date().toISOString(),
-    }]);
-  } catch {
-    // Handled gracefully if table is RLS-restricted or optional
-  }
 }
 
 export async function adminGetCustomDesignRequests(): Promise<CustomDesignRequest[]> {
@@ -837,8 +839,18 @@ export function saveCustomerOrder(order: Order): void {
     if (typeof window === 'undefined') return;
     const existingRaw = localStorage.getItem(CUSTOMER_ORDERS_STORAGE_KEY);
     const existing: Order[] = existingRaw ? JSON.parse(existingRaw) : [];
-    const filtered = existing.filter((o) => o.order_number !== order.order_number);
-    filtered.unshift(order);
+    // Keep only non-sensitive receipt metadata. Phone, email, address and line items
+    // must never persist in browser storage on shared devices.
+    const safeSummary = {
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      total_egp: order.total_egp,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+    } as Order;
+    const filtered = existing.filter((o) => o.order_number !== safeSummary.order_number);
+    filtered.unshift(safeSummary);
     localStorage.setItem(CUSTOMER_ORDERS_STORAGE_KEY, JSON.stringify(filtered.slice(0, 20)));
   } catch {
     // Storage quota or privacy mode
@@ -852,7 +864,24 @@ export function getCustomerOrders(): Order[] {
   try {
     if (typeof window === 'undefined') return [];
     const existingRaw = localStorage.getItem(CUSTOMER_ORDERS_STORAGE_KEY);
-    return existingRaw ? JSON.parse(existingRaw) : [];
+    const existing: Order[] = existingRaw ? JSON.parse(existingRaw) : [];
+    const safeSummaries = existing
+      .filter((order) => order && typeof order.order_number === 'string')
+      .map(
+        (order) =>
+          ({
+            id: order.id,
+            order_number: order.order_number,
+            status: order.status,
+            total_egp: order.total_egp,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+          }) as Order
+      )
+      .slice(0, 20);
+    // Also scrub records written by older builds that contained PII.
+    localStorage.setItem(CUSTOMER_ORDERS_STORAGE_KEY, JSON.stringify(safeSummaries));
+    return safeSummaries;
   } catch {
     return [];
   }
@@ -1050,24 +1079,5 @@ export async function lookupPublicOrder(
     // Handled gracefully
   }
 
-  // 3. Fallback: ONLY if phone was verified or this device has matching local order with verified phone
-  if (cleanPhone && cleanPhone.length >= 4) {
-    const customerOrders = getCustomerOrders();
-    const localMatch = customerOrders.find((o) => {
-      const numMatch =
-        o.order_number.toUpperCase() === cleanNumber ||
-        o.order_number.toUpperCase() === `MERO-${cleanNumber}`;
-      const localPhoneDigits = (o.phone || '').replace(/\D/g, '');
-      const phoneMatch =
-        localPhoneDigits.endsWith(cleanPhone) || cleanPhone.endsWith(localPhoneDigits);
-      return numMatch && phoneMatch;
-    });
-
-    if (localMatch) {
-      return localMatch;
-    }
-  }
-
   return null;
 }
-

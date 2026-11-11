@@ -22,10 +22,12 @@ export interface ProductPriceStock {
 
 export interface CouponRule {
   code: string;
-  discount_type: 'percent' | 'fixed';
+  discount_type: 'percentage' | 'fixed';
   discount_value: number;
   min_order_egp?: number;
+  max_discount_egp?: number | null;
   is_active: boolean;
+  starts_at?: string | null;
   expires_at?: string | null;
 }
 
@@ -154,6 +156,10 @@ export function evaluateCoupon(
     return { valid: false, discount: 0, error: 'This coupon is inactive' };
   }
 
+  if (coupon.starts_at && new Date(coupon.starts_at).getTime() > Date.now()) {
+    return { valid: false, discount: 0, error: 'This coupon is not active yet' };
+  }
+
   if (coupon.expires_at) {
     const expiry = new Date(coupon.expires_at).getTime();
     if (expiry < Date.now()) {
@@ -170,10 +176,14 @@ export function evaluateCoupon(
   }
 
   let discount = 0;
-  if (coupon.discount_type === 'percent') {
+  if (coupon.discount_type === 'percentage') {
     discount = (subtotal * coupon.discount_value) / 100;
   } else {
     discount = Math.min(subtotal, coupon.discount_value);
+  }
+
+  if (coupon.max_discount_egp != null) {
+    discount = Math.min(discount, coupon.max_discount_egp);
   }
 
   // Ensure discount does not exceed subtotal
@@ -429,4 +439,3 @@ export function computeOrderMilestones(status: string): OrderMilestone[] {
     };
   });
 }
-
