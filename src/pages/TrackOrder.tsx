@@ -57,7 +57,7 @@ export default function TrackOrder() {
       if (urlOrder) {
         setOrderQuery(urlOrder);
         if (urlPhone) setPhoneQuery(urlPhone);
-        performLookup(urlOrder, urlPhone || undefined);
+        if (urlPhone) performLookup(urlOrder, urlPhone);
       }
     }
   }, []);

@@ -62,8 +62,8 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguageState] = useState<Language>(() => readStorage<Language>('mero_lang', 'en'));
   const [cart, setCart] = useState<CartItem[]>(() => readStorage<CartItem[]>('mero_cart', []));
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage<string[]>('mero_wishlist', []));
-  const [products, setProducts] = useState<Product[]>(initialArtisanProducts);
-  const [categories, setCategories] = useState<CategoryItem[]>(initialCategories);
+  const [products, setProducts] = useState<Product[]>(import.meta.env.DEV ? initialArtisanProducts : []);
+  const [categories, setCategories] = useState<CategoryItem[]>(import.meta.env.DEV ? initialCategories : []);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
