@@ -19,12 +19,15 @@ DECLARE
   v_variant record;
   v_has_variants boolean;
   v_new_status text := trim(coalesce(p_new_status, ''));
+  v_allowed boolean := false;
 BEGIN
   IF NOT public.is_store_admin() THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
-  IF v_new_status = '' THEN
-    RAISE EXCEPTION 'Invalid order status';
+  IF v_new_status NOT IN (
+    'pending', 'confirmed', 'in_production', 'ready_to_ship', 'shipped', 'delivered', 'cancelled'
+  ) THEN
+    RAISE EXCEPTION 'Unknown order status: %', v_new_status;
   END IF;
 
   -- Row lock serializes all status transitions for this order.
@@ -36,13 +39,30 @@ BEGIN
     RAISE EXCEPTION 'Order not found';
   END IF;
 
+  -- Same-state updates are harmless idempotent no-ops.
+  IF v_order.status = v_new_status THEN
+    RETURN;
+  END IF;
+
   -- Cancellation is terminal. A repeated cancellation is an idempotent no-op;
   -- reopening is rejected rather than risking a second stock mutation.
   IF v_order.status = 'cancelled' THEN
-    IF v_new_status = 'cancelled' THEN
-      RETURN;
-    END IF;
     RAISE EXCEPTION 'Cancelled orders cannot be reopened';
+  END IF;
+
+  -- These are the only statuses exposed by the current Admin workflow.
+  -- Cancellation remains safe through ready_to_ship, but not after dispatch.
+  CASE v_order.status
+    WHEN 'pending' THEN v_allowed := v_new_status IN ('confirmed', 'cancelled');
+    WHEN 'confirmed' THEN v_allowed := v_new_status IN ('in_production', 'cancelled');
+    WHEN 'in_production' THEN v_allowed := v_new_status IN ('ready_to_ship', 'cancelled');
+    WHEN 'ready_to_ship' THEN v_allowed := v_new_status IN ('shipped', 'cancelled');
+    WHEN 'shipped' THEN v_allowed := v_new_status = 'delivered';
+    WHEN 'delivered' THEN v_allowed := false;
+    ELSE v_allowed := false;
+  END CASE;
+  IF NOT v_allowed THEN
+    RAISE EXCEPTION 'Invalid order status transition: % -> %', v_order.status, v_new_status;
   END IF;
 
   IF v_new_status = 'cancelled' THEN
