@@ -178,10 +178,14 @@ export async function validateCoupon(
     if (data) {
       const rule = {
         code: data.code,
-        discount_type: data.discount_type || 'percent',
+        // `percent` is accepted only as a read-compatibility alias; the canonical
+        // database/application value is `percentage`.
+        discount_type: data.discount_type === 'percent' ? 'percentage' : data.discount_type || 'percentage',
         discount_value: Number(data.discount_value || data.discount_percent || data.discount_amount || 0),
+        max_discount_egp: data.max_discount_egp == null ? null : Number(data.max_discount_egp),
         min_order_egp: data.min_order_egp ? Number(data.min_order_egp) : undefined,
         is_active: data.is_active !== false,
+        starts_at: data.starts_at || null,
         expires_at: data.expires_at || data.valid_until,
       };
       const evalResult = evaluateCoupon(cleanCode, subtotal, rule);
@@ -518,8 +522,9 @@ export async function adminGetCoupons(): Promise<Coupon[]> {
 export async function adminUpsertCoupon(coupon: {
   id?: string;
   code: string;
-  discount_type: 'percent' | 'fixed';
+  discount_type: 'percentage' | 'fixed';
   discount_value: number;
+  max_discount_egp?: number | null;
   min_order_egp?: number;
   is_active: boolean;
   expires_at?: string | null;
@@ -528,6 +533,7 @@ export async function adminUpsertCoupon(coupon: {
     code: coupon.code.toUpperCase(),
     discount_type: coupon.discount_type,
     discount_value: coupon.discount_value,
+    ...(coupon.max_discount_egp !== undefined ? { max_discount_egp: coupon.max_discount_egp } : {}),
     min_order_egp: coupon.min_order_egp || 0,
     is_active: coupon.is_active,
     expires_at: coupon.expires_at || null,
