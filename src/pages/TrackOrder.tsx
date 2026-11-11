@@ -155,9 +155,12 @@ export default function TrackOrder() {
 
   const handleSelectCustomerOrder = (selectedNumber: string) => {
     setOrderQuery(selectedNumber);
-    const matched = customerOrders.find((c) => c.order_number === selectedNumber);
-    const matchingPhone = matched?.phone || '';
-    performLookup(selectedNumber, matchingPhone || undefined);
+    setOrder(null);
+    setErrorMessage(
+      isAr
+        ? 'أدخلي رقم الهاتف المسجل لإظهار تفاصيل الطلب وحماية الخصوصية.'
+        : 'Enter the registered phone number to verify and display this order.'
+    );
   };
 
   const milestones: OrderMilestone[] = order ? computeOrderMilestones(order.status) : [];

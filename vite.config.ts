@@ -8,9 +8,7 @@ const SAFE_PUBLISHABLE_KEY = 'sb_publishable_mbcIpQSy7CvVEiuxD6xN_A_KQ9doMpj';
 // Security Guard: Prevent any server secrets from accidentally leaking through VITE_ variables
 const rawAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 if (rawAnonKey && (rawAnonKey.startsWith('sb_secret_') || rawAnonKey.includes('service_role') || rawAnonKey.toLowerCase().includes('secret'))) {
-  // Move secret key to secure server-only variable
-  process.env.SUPABASE_SERVICE_ROLE_KEY = rawAnonKey;
-  // Overwrite VITE_ variables with the safe publishable key
+  // Never move or retain a secret key; overwrite the client-facing value.
   process.env.VITE_SUPABASE_ANON_KEY = SAFE_PUBLISHABLE_KEY;
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY = SAFE_PUBLISHABLE_KEY;
 }
@@ -41,4 +39,3 @@ export default defineConfig(() => {
     },
   };
 });
-
