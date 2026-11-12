@@ -12,12 +12,22 @@ export interface CartItemInput {
   quantity: number;
 }
 
+export interface ProductVariantStock {
+  id: string;
+  product_id?: string;
+  size: string;
+  color: string;
+  stock: number;
+  is_active: boolean;
+}
+
 export interface ProductPriceStock {
   id: string;
   price_egp: number;
   stock: number;
   production_type: 'ready' | 'made_to_order' | 'limited';
   is_published: boolean;
+  variants?: ProductVariantStock[];
 }
 
 export interface CouponRule {
@@ -90,7 +100,12 @@ export function mergeCartItems(existingItems: CartItemInput[], newItem: CartItem
 }
 
 /**
- * Validates cart items against live product catalog stock.
+ * Validates cart items against live product catalog and variant stock.
+ * Rules:
+ * - made_to_order items are never restricted by stock and never block checkout.
+ * - If product has configured variants, requested variant must exist and be active.
+ * - Variant stock is checked strictly; never silently falls back to base product stock.
+ * - If product has no variants, base product stock is checked for ready/limited pieces.
  */
 export function validateStockAvailability(
   items: CartItemInput[],
@@ -108,13 +123,48 @@ export function validateStockAvailability(
       errors.push(`Product "${item.productId}" is not currently published.`);
       continue;
     }
-    if (
-      (product.production_type === 'ready' || product.production_type === 'limited') &&
-      product.stock < item.quantity
-    ) {
-      errors.push(
-        `Insufficient stock for product "${product.id}". Requested: ${item.quantity}, Available: ${product.stock}.`
+
+    // made_to_order products are never limited by available stock
+    if (product.production_type === 'made_to_order') {
+      continue;
+    }
+
+    const hasConfiguredVariants =
+      Array.isArray(product.variants) && product.variants.some((v) => v.is_active);
+
+    if (hasConfiguredVariants) {
+      const matchedVariant = product.variants?.find(
+        (v) =>
+          v.is_active &&
+          v.size.trim().toLowerCase() === item.size.trim().toLowerCase() &&
+          v.color.trim().toLowerCase() === item.color.trim().toLowerCase()
       );
+
+      if (!matchedVariant) {
+        errors.push(
+          `Variant "${item.size} / ${item.color}" is not available for product "${product.id}".`
+        );
+        continue;
+      }
+
+      if (
+        (product.production_type === 'ready' || product.production_type === 'limited') &&
+        matchedVariant.stock < item.quantity
+      ) {
+        errors.push(
+          `Insufficient stock for product "${product.id}" (${item.size} / ${item.color}). Requested: ${item.quantity}, Available: ${matchedVariant.stock}.`
+        );
+      }
+    } else {
+      // Product without variants
+      if (
+        (product.production_type === 'ready' || product.production_type === 'limited') &&
+        product.stock < item.quantity
+      ) {
+        errors.push(
+          `Insufficient stock for product "${product.id}". Requested: ${item.quantity}, Available: ${product.stock}.`
+        );
+      }
     }
   }
 

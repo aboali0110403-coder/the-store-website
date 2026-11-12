@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import {
   Scissors,
@@ -52,6 +52,19 @@ export default function CustomDesign() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState<{ requestNumber: string; name: string } | null>(null);
+
+  // Clean up any lingering blob object URLs upon unmount
+  useEffect(() => {
+    return () => {
+      referenceItems.forEach((item) => {
+        if (item.preview && item.preview.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(item.preview);
+          } catch {}
+        }
+      });
+    };
+  }, [referenceItems]);
 
   const handleDeviceFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -127,8 +140,15 @@ export default function CustomDesign() {
 
   const handleRemoveReferenceItem = async (index: number) => {
     const item = referenceItems[index];
-    if (item.path) {
-      deleteStorageFile('design-references', item.path);
+    if (item) {
+      if (item.preview && item.preview.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(item.preview);
+        } catch {}
+      }
+      if (item.path) {
+        deleteStorageFile('design-references', item.path);
+      }
     }
     setReferenceItems((prev) => prev.filter((_, i) => i !== index));
   };

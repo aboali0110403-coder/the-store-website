@@ -90,9 +90,13 @@ export interface OrderStatusHistory {
   id: string;
   order_id: string;
   status: string;
+  new_status?: string;
   notes?: string;
-  changed_by?: string;
+  note?: string;
+  changed_by?: string | null;
+  source?: string;
   created_at: string;
+  changed_at?: string;
 }
 
 export interface PaymentTransaction {
@@ -119,7 +123,9 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'in_production' | 'ready_to_ship' | 'shipped' | 'delivered' | 'cancelled';
   subtotal_egp: number;
   shipping_egp?: number | null;
+  discount_egp?: number | null;
   total_egp?: number | null;
+  tracking_token?: string;
   admin_notes?: string | null;
   created_at: string;
   updated_at: string;

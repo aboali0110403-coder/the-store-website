@@ -48,24 +48,26 @@ export default function TrackOrder() {
     setCustomerOrders(getCustomerOrders());
   }, []);
 
-  // Check URL query parameters for ?order=MERO-...
+  // Check URL query parameters for ?order=MERO-... & optional ?phone= or ?token=
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlOrder = params.get('order');
       const urlPhone = params.get('phone');
+      const urlToken = params.get('token');
       if (urlOrder) {
         setOrderQuery(urlOrder);
         if (urlPhone) setPhoneQuery(urlPhone);
-        performLookup(urlOrder, urlPhone || undefined);
+        performLookup(urlOrder, urlPhone || undefined, urlToken || undefined, false);
       }
     }
   }, []);
 
-  // Real-time Supabase subscription: instantly reflects status changes made in Admin!
+  // Real-time Supabase subscription + authorized bounded polling (every 30s when tab is active)
   useEffect(() => {
     if (!order?.order_number) return;
 
+    // Realtime channel
     const channel = supabase
       .channel(`order-tracking-${order.order_number}`)
       .on(
@@ -77,20 +79,27 @@ export default function TrackOrder() {
           filter: `order_number=eq.${order.order_number}`,
         },
         () => {
-          // Re-fetch latest live status from database
-          performLookup(order.order_number, phoneQuery || undefined, false);
+          performLookup(order.order_number, phoneQuery || undefined, order.tracking_token, false);
         }
       )
       .subscribe();
 
+    // Bounded interval polling (every 30s) ensuring guest updates propagate even if realtime is gated
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      performLookup(order.order_number, phoneQuery || undefined, order.tracking_token, false);
+    }, 30000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, [order?.order_number, phoneQuery]);
+  }, [order?.order_number, phoneQuery, order?.tracking_token]);
 
   const performLookup = async (
     queryToSearch: string,
     phoneToVerify?: string,
+    token?: string,
     updateUrl: boolean = true
   ) => {
     const validation = validateOrderNumberInput(queryToSearch);
@@ -110,7 +119,7 @@ export default function TrackOrder() {
     const phoneParam = phoneToVerify !== undefined ? phoneToVerify : phoneQuery;
 
     try {
-      const result = await lookupPublicOrder(validation.normalized, phoneParam);
+      const result = await lookupPublicOrder(validation.normalized, phoneParam, token);
       if (!result) {
         setOrder(null);
         setErrorMessage(
@@ -291,10 +300,29 @@ export default function TrackOrder() {
             {/* Customer's placed orders on this browser */}
             {customerOrders.length > 0 && (
               <div className="customer-recent-orders">
-                <span className="recent-orders-title">
-                  <Clock size={13} />
-                  {isAr ? 'طلباتكِ المسجلة على هذا الجهاز:' : 'Orders placed on this device:'}
-                </span>
+                <div className="flex items-center justify-between w-full">
+                  <span className="recent-orders-title">
+                    <Clock size={13} />
+                    {isAr ? 'طلباتكِ المسجلة على هذا الجهاز:' : 'Orders placed on this device:'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        if (typeof window !== 'undefined') {
+                          localStorage.removeItem('mero_customer_orders');
+                        }
+                      } catch {
+                        // ignore storage error
+                      }
+                      setCustomerOrders([]);
+                    }}
+                    className="text-xs text-stone-500 hover:text-stone-800 underline transition-colors cursor-pointer"
+                    title={isAr ? 'مسح السجل من هذا الجهاز للخصوصية' : 'Clear order history from this device'}
+                  >
+                    {isAr ? 'مسح السجل' : 'Clear'}
+                  </button>
+                </div>
                 <div className="recent-orders-list">
                   {customerOrders.map((co) => (
                     <button
@@ -350,7 +378,7 @@ export default function TrackOrder() {
               <div className="order-header-row">
                 <div>
                   <div className="order-number-title">
-                    <img src="/mero-logo.png" alt="Mero Boutique" className="track-order-logo-img" />
+                    <img src="/mero-logo-256.png" alt="Mero Boutique" className="track-order-logo-img" />
                     <h2>#{order.order_number}</h2>
                   </div>
                   {/* Zero-pill metadata row */}
@@ -384,7 +412,7 @@ export default function TrackOrder() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => performLookup(order.order_number, phoneQuery || undefined, false)}
+                      onClick={() => performLookup(order.order_number, phoneQuery || undefined, undefined, false)}
                       disabled={loading}
                       className="px-2 py-1 border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] text-[#49343f] text-xs flex items-center gap-1 hover:bg-[#f5efec]"
                       title={isAr ? 'تحديث فوري للحالة من قاعدة البيانات' : 'Live refresh status from database'}
@@ -584,23 +612,31 @@ export default function TrackOrder() {
                 <div className="status-history-section">
                   <h3>{isAr ? 'سجل تحديثات الطلب' : 'Status History Log'}</h3>
                   <div className="history-timeline">
-                    {order.status_history.map((hist) => (
-                      <div key={hist.id} className="history-entry">
-                        <span className="history-time">
-                          {new Date(hist.created_at).toLocaleString(isAr ? 'ar-EG' : 'en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        <span className="history-dot" />
-                        <div className="history-text">
-                          <strong>{getStatusLabel(hist.status)}</strong>
-                          {hist.notes && <p>{hist.notes}</p>}
+                    {order.status_history.map((hist) => {
+                      const effectiveTime = hist.changed_at || hist.created_at;
+                      const effectiveStatus = hist.new_status || hist.status;
+                      const effectiveNote = hist.note || hist.notes;
+
+                      return (
+                        <div key={hist.id} className="history-entry">
+                          <span className="history-time">
+                            {effectiveTime
+                              ? new Date(effectiveTime).toLocaleString(isAr ? 'ar-EG' : 'en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : ''}
+                          </span>
+                          <span className="history-dot" />
+                          <div className="history-text">
+                            <strong>{getStatusLabel(effectiveStatus)}</strong>
+                            {effectiveNote && <p>{effectiveNote}</p>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

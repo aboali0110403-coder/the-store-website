@@ -1,69 +1,51 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const FALLBACK_SUPABASE_URL = 'https://pvvsvxdqjguemptocvcs.supabase.co';
-const FALLBACK_ANON_KEY = 'sb_publishable_mbcIpQSy7CvVEiuxD6xN_A_KQ9doMpj';
+// Resolve environment variables explicitly from Vite runtime
+const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
+const envKey = (
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)
+)?.trim();
 
-function resolveSupabaseUrl(): string {
-  const rawUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
-  if (!rawUrl || rawUrl === 'undefined' || rawUrl === 'null' || rawUrl === 'MY_SUPABASE_URL') {
-    return FALLBACK_SUPABASE_URL;
-  }
-  try {
-    const url = new URL(rawUrl);
-    if (url.protocol === 'http:' || url.protocol === 'https:') {
-      return rawUrl;
-    }
-  } catch {
-    // Malformed URL, fall back to known live project endpoint
-  }
-  return FALLBACK_SUPABASE_URL;
+// STRICT SECURITY GUARD:
+// Service role keys or secret keys (`sb_secret_...`) are strictly forbidden in client-side code.
+if (
+  envKey &&
+  (envKey.startsWith('sb_secret_') ||
+    envKey.includes('service_role') ||
+    envKey.toLowerCase().includes('secret'))
+) {
+  throw new Error(
+    'CRITICAL SECURITY VIOLATION: A service_role or secret API key was detected in frontend environment variables. ' +
+    'The browser bundle must exclusively receive the public publishable anon key.'
+  );
 }
 
-function resolveSupabaseAnonKey(): string {
-  const rawKey = (
-    (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)
-  )?.trim();
+// Check configuration validity without hardcoding silent production fallbacks
+export const isConfigured = Boolean(
+  envUrl &&
+  envUrl !== 'https://your-project-ref.supabase.co' &&
+  (envUrl.startsWith('http://') || envUrl.startsWith('https://')) &&
+  envKey &&
+  envKey !== 'your-supabase-anon-publishable-key' &&
+  envKey.length >= 10
+);
 
-  // STRICT SECURITY GUARD:
-  // Secret API keys (`sb_secret_...`) and service_role keys are forbidden in client-side code.
-  // The browser must only ever use the Supabase publishable/anon key.
-  if (
-    rawKey &&
-    (rawKey.startsWith('sb_secret_') ||
-      rawKey.includes('service_role') ||
-      rawKey.toLowerCase().includes('secret'))
-  ) {
-    // Safely discard the forbidden secret key and fall back to public anon key
-    return FALLBACK_ANON_KEY;
-  }
-
-  if (
-    !rawKey ||
-    rawKey === 'undefined' ||
-    rawKey === 'null' ||
-    rawKey === 'MY_SUPABASE_KEY' ||
-    rawKey.length < 10
-  ) {
-    return FALLBACK_ANON_KEY;
-  }
-
-  // Only accept verified publishable keys (sb_publishable_...) or standard anon JWTs (eyJ...)
-  if (rawKey.startsWith('sb_publishable_') || rawKey.startsWith('eyJ')) {
-    return rawKey;
-  }
-
-  return FALLBACK_ANON_KEY;
+if (!isConfigured) {
+  console.warn(
+    '[Mero Boutique] Supabase configuration is missing or incomplete. ' +
+    'Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.'
+  );
 }
 
-const supabaseUrl = resolveSupabaseUrl();
-const supabaseAnonKey = resolveSupabaseAnonKey();
+const targetUrl = isConfigured ? envUrl! : 'https://unconfigured-store.supabase.co';
+const targetKey = isConfigured ? envKey! : 'unconfigured-anon-key';
 
 /**
  * Singleton Supabase client for client-side operations.
- * Uses only publishable anon key with browser storage and RLS.
+ * Uses exclusively the public anon key with browser storage and Row Level Security.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase: SupabaseClient = createClient(targetUrl, targetKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

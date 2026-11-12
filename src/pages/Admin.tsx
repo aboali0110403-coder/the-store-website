@@ -149,6 +149,8 @@ export default function Admin() {
   });
 
   const [orderStatusNotes, setOrderStatusNotes] = useState<Record<string, string>>({});
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
   // Image Upload state
   const [primaryImageUploading, setPrimaryImageUploading] = useState(false);
@@ -274,9 +276,7 @@ export default function Admin() {
 
       if (prods.status === 'fulfilled') {
         setProducts(prods.value);
-        if (prods.value.length > 0 && !selectedProductId) {
-          setSelectedProductId(prods.value[0].id);
-        }
+        setSelectedProductId((prev) => prev || (prods.value[0] ? prods.value[0].id : null));
       }
       if (rates.status === 'fulfilled') setShippingRates(rates.value);
       if (coups.status === 'fulfilled') setCoupons(coups.value);
@@ -288,7 +288,7 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthorized, selectedProductId]);
+  }, [isAuthorized]);
 
   useEffect(() => {
     if (isAuthorized) {
@@ -639,7 +639,7 @@ export default function Admin() {
         <div className="container admin-shell">
           <div className="admin-topbar">
             <div className="flex items-center gap-3">
-              <img src="/mero-logo.png" alt="Mero Boutique" className="admin-logo-img" />
+              <img src="/mero-logo-256.png" alt="Mero Boutique" className="admin-logo-img" />
               <div>
                 <span className="eyebrow">MERO / SECURITY BOUNDARY</span>
                 <h1>{isAr ? 'بوابة إدارة ميرو بوتيك' : 'Atelier Administration'}</h1>
@@ -1961,11 +1961,46 @@ export default function Admin() {
         {/* 6. ORDERS & PAYMENTS TAB */}
         {activeTab === 'orders' && (
           <div className="mero-records">
-            <h2>{isAr ? 'الطلبات وسجل الحالات والمعاملات' : 'Orders & Payment Transactions'}</h2>
-            {orders.length === 0 ? (
-              <p className="mero-empty">{isAr ? 'لا توجد طلبات مسجلة.' : 'No customer orders in database yet.'}</p>
-            ) : (
-              orders.map((o) => (
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2>{isAr ? 'الطلبات وسجل الحالات والمعاملات' : 'Orders & Payment Transactions'}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  placeholder={isAr ? 'بحث بالطلب، العميل، الهاتف...' : 'Search order #, customer, phone...'}
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  className="p-1.5 text-xs border border-stone-300 w-52 bg-white"
+                />
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className="p-1.5 text-xs border border-stone-300 bg-white"
+                >
+                  <option value="all">{isAr ? 'جميع الحالات' : 'All Statuses'}</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_production">In Production</option>
+                  <option value="ready_to_ship">Ready to Ship</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            {orders
+              .filter((o) => {
+                const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                if (!matchesStatus) return false;
+                if (!orderSearchQuery.trim()) return true;
+                const q = orderSearchQuery.toLowerCase().trim();
+                return (
+                  (o.order_number && o.order_number.toLowerCase().includes(q)) ||
+                  (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
+                  (o.phone && o.phone.toLowerCase().includes(q)) ||
+                  (o.governorate && o.governorate.toLowerCase().includes(q))
+                );
+              })
+              .map((o) => (
                 <article key={o.id} className="mero-record flex-col items-start gap-3">
                   <div className="w-full flex justify-between items-start">
                     <div>
@@ -1980,10 +2015,22 @@ export default function Admin() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder={isAr ? 'ملاحظة التحديث (اختياري)...' : 'Update note (optional)...'}
+                        value={orderStatusNotes[o.id] || ''}
+                        onChange={(e) =>
+                          setOrderStatusNotes({
+                            ...orderStatusNotes,
+                            [o.id]: e.target.value,
+                          })
+                        }
+                        className="text-xs p-1 border w-44 bg-white"
+                      />
                       <select
                         value={o.status}
                         onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                        className="text-xs p-1 border font-medium"
+                        className="text-xs p-1 border font-medium bg-white"
                       >
                         <option value="pending">Pending</option>
                         <option value="confirmed">Confirmed</option>
@@ -2010,9 +2057,34 @@ export default function Admin() {
                       ))}
                     </div>
                   )}
+
+                  {/* Status History Audit Log */}
+                  {o.status_history && o.status_history.length > 0 && (
+                    <div className="w-full bg-white p-2 border text-xs">
+                      <span className="font-semibold block text-[#49343f] mb-1">
+                        {isAr ? 'سجل الحالات والملاحظات:' : 'Status History Log:'}
+                      </span>
+                      <div className="space-y-1">
+                        {o.status_history.map((sh: any) => {
+                          const time = sh.changed_at || sh.created_at;
+                          const st = sh.new_status || sh.status;
+                          const nt = sh.note || sh.notes;
+                          return (
+                            <div key={sh.id} className="flex items-center gap-2 text-[11px] text-[#604f57]">
+                              <span className="text-[#806f77]">
+                                {time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                              <span className="font-medium uppercase text-[#49343f]">[{st}]</span>
+                              {nt && <span>— {nt}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </article>
               ))
-            )}
+            }
           </div>
         )}
 

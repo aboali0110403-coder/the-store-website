@@ -35,7 +35,7 @@ export default function Home() {
           </div>
           <div className="hero-note">
             <span className="hero-note-mark" aria-hidden="true">
-              <img src="/mero-logo.png" alt="Mero Monogram" className="hero-note-logo" />
+              <img src="/mero-logo-256.png" alt="Mero Monogram" className="hero-note-logo" />
             </span>
             <span>
               {isAr

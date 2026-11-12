@@ -1007,7 +1007,8 @@ export async function deleteStorageFile(
  */
 export async function lookupPublicOrder(
   rawOrderNumber: string,
-  phoneVerification?: string
+  phoneVerification?: string,
+  trackingToken?: string
 ): Promise<Order | null> {
   const cleanNumber = (rawOrderNumber || '').trim().toUpperCase();
   if (!cleanNumber) return null;
@@ -1022,11 +1023,12 @@ export async function lookupPublicOrder(
 
   const cleanPhone = phoneVerification ? phoneVerification.replace(/\D/g, '') : '';
 
-  // 1. Primary: Live database lookup via public secure RPC (with phone verification)
+  // 1. Primary: Live database lookup via public secure RPC (with phone verification and optional token)
   try {
     const { data, error } = await supabase.rpc('lookup_public_order', {
       p_order_number: cleanNumber,
       p_phone: cleanPhone || null,
+      p_tracking_token: trackingToken ? trackingToken.trim() : null,
     });
 
     if (!error && data) {

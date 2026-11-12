@@ -263,7 +263,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
           <Link href="/" className="site-logo" aria-label="Mero Boutique Home">
             <img
-              src="/mero-logo.png"
+              src="/mero-logo-256.png"
               alt="Mero Boutique"
               className="site-logo-img"
             />
@@ -335,7 +335,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             <div className="mobile-nav-top">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="site-logo">
                 <img
-                  src="/mero-logo.png"
+                  src="/mero-logo-256.png"
                   alt="Mero Boutique"
                   className="site-logo-img"
                   style={{ height: '40px' }}
@@ -498,7 +498,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
           <div className="footer-brand">
             <Link href="/" className="footer-logo-wrap" aria-label="Mero Boutique Home">
               <img
-                src="/mero-logo.png"
+                src="/mero-logo-256.png"
                 alt="Mero Boutique"
                 className="footer-logo-img"
               />

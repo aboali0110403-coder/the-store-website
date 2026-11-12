@@ -83,18 +83,28 @@ export default function ProductDetail() {
     );
   }, [product, selectedSize, selectedColor]);
 
-  // Real-time stock determination
+  const hasConfiguredVariants = useMemo(() => {
+    return Boolean(product?.variants && product.variants.some((v) => v.is_active));
+  }, [product?.variants]);
+
+  // Real-time stock determination: strict variant stock if variants exist; never falls back to base stock
   const availableStock = useMemo(() => {
     if (!product) return 0;
-    if (currentVariant) {
-      return currentVariant.stock;
+    if (hasConfiguredVariants) {
+      return currentVariant ? currentVariant.stock : 0;
     }
     return product.stock;
-  }, [product, currentVariant]);
+  }, [product, hasConfiguredVariants, currentVariant]);
 
   const isInventoryControlled =
     product?.production === 'ready' || product?.production === 'limited';
-  const isOutOfStock = Boolean(isInventoryControlled && availableStock <= 0);
+
+  // Out of stock if:
+  // 1. Inventory controlled AND availableStock <= 0
+  // 2. Or product has variants configured, but selected size/color does not match any active variant
+  const isOutOfStock = Boolean(
+    isInventoryControlled && (availableStock <= 0 || (hasConfiguredVariants && !currentVariant))
+  );
   const maxAllowedQuantity = isInventoryControlled ? Math.max(1, availableStock) : 20;
 
   const handleAddToBag = () => {
@@ -273,7 +283,7 @@ export default function ProductDetail() {
                 <strong>
                   {isOutOfStock
                     ? isAr
-                      ? 'نفدت الكمية'
+                      ? 'نفدت الكمية المتاحة للشحن الفوري'
                       : 'Out of Stock'
                     : product.production === 'ready'
                     ? isAr
@@ -284,10 +294,18 @@ export default function ProductDetail() {
                       ? `إصدار محدود حصري (${availableStock} متبقي)`
                       : `Limited Atelier Edition (${availableStock} remaining)`
                     : isAr
-                    ? 'يُنفّذ حسب الطلب (تفصيل وتطريز يدوي)'
+                    ? 'يُنفّذ حسب الطلب (تفصيل وتطريز يدوي خاص للأتيليه)'
                     : 'Made to Order (Bespoke Hand Embroidery)'}
                 </strong>
-                <p>{isAr ? product.deliveryAr : product.delivery}</p>
+                <p>
+                  {product.production === 'made-to-order'
+                    ? isAr
+                      ? 'يتم تنفيذ هذه القطعة خصيصاً بمقاساتك بعد مراجعة الطلب مع الأتيليه، ولا تخضع لقيود نفاذ المخزون الجاهز.'
+                      : 'Crafted individually to order by our Cairo artisans upon consultation; not limited by ready-made stock.'
+                    : isAr
+                    ? product.deliveryAr
+                    : product.delivery}
+                </p>
               </div>
             </div>
 

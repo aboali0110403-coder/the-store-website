@@ -488,7 +488,7 @@ img { display: block; max-width: 100%; }
 .custom-design-aside h2 { margin: 18px 0 12px; font-family: var(--serif); font-size: 2.15rem; font-weight: 500; line-height: 1.05; }
 .custom-design-aside p, .custom-design-aside li { color: #665c56; font-size: 0.96rem; line-height: 1.8; }
 .custom-design-aside ul { padding-inline-start: 18px; margin-top: 20px; }
-.custom-deposit-note { margin: 26px 0 20px; padding: 18px 20px; border-inline-start: 3px solid var(--burgundy); background: #f5f0eb; }
+.custom-deposit-note { margin: 26px 0 20px; padding: 18px 20px; border: 1px solid rgba(73, 52, 63, 0.15); background: #f9f5f1; }
 .custom-deposit-note strong { color: var(--burgundy); font-size: 0.98rem; }
 .custom-deposit-note p { margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; line-height: 1.8; }
 
