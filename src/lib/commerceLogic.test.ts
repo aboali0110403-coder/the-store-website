@@ -330,6 +330,19 @@ test('multi-item mixed cart validates ready stock while exempting made_to_order'
   assert.ok(checkFail.errors[0].includes('Insufficient stock'));
 });
 
+test('TrackOrder reuses lookup credentials for realtime, polling, and manual refresh', () => {
+  const trackingPage = readFileSync(join(process.cwd(), 'src', 'pages', 'TrackOrder.tsx'), 'utf8');
+
+  assert.match(trackingPage, /lookupCredentialsRef = useRef/);
+  assert.match(trackingPage, /phone: phoneParam\?\.trim\(\) \|\| undefined/);
+  assert.match(trackingPage, /token: token\?\.trim\(\) \|\| undefined/);
+  assert.equal(
+    (trackingPage.match(/performLookup\(order\.order_number, credentials\.phone, credentials\.token, false\)/g) || []).length,
+    3
+  );
+  assert.match(trackingPage, /performLookup\(urlOrder, urlPhone \|\| undefined, urlToken \|\| undefined, true\)/);
+});
+
 test('Phase 6 migration contract preserves sole trigger history, idempotency, cancellation stock restore, and private notes', () => {
   const migrationDirectory = join(process.cwd(), 'supabase', 'migrations');
   const migrationName = readdirSync(migrationDirectory).find((name) =>
