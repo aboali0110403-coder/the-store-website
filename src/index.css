@@ -532,6 +532,7 @@ img { display: block; max-width: 100%; }
   .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
   .header-inner > .site-logo .wordmark small { font-size: 0.44rem; }
   .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 6px; padding: 22px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(73,52,63,.15); transform: translateX(-105%); transition: transform .25s ease; }
+  .main-nav { overflow-y: auto; overscroll-behavior: contain; }
   .main-nav.is-open { transform: translateX(0); }
   body.rtl .main-nav, .rtl .main-nav { left: auto; right: 0; transform: translateX(105%); }
   body.rtl .main-nav.is-open, .rtl .main-nav.is-open { transform: translateX(0); }
