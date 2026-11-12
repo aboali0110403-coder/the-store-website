@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   formatEGP,
   validateCartItem,
@@ -152,27 +154,43 @@ test('evaluateCoupon verifies percentages, fixed discounts, and minimum orders',
   assert.equal(evaluateCoupon('', 5000, null).valid, false);
 });
 
-test('resolveShippingRate correctly maps governorates and handles unconfigured ones', () => {
+test('resolveShippingRate prefers normalized area rates and falls back only to an explicit governorate default', () => {
   const rates = [
-    { governorate: 'Cairo', fee_egp: 60, is_active: true },
-    { governorate: 'Alexandria', fee_egp: 85, is_active: true },
-    { governorate: 'Aswan', fee_egp: 120, is_active: false },
+    { governorate: 'Cairo', area: '', fee_egp: 60, is_active: true },
+    { governorate: 'Cairo', area: 'Zamalek', fee_egp: 75, is_active: true },
+    { governorate: 'Cairo', area: 'Maadi', fee_egp: 80, is_active: true },
+    { governorate: 'Alexandria', area: 'Smouha', fee_egp: 85, is_active: true },
+    { governorate: 'Giza', area: 'Dokki', fee_egp: 65, is_active: false },
+    { governorate: 'Giza', area: '', fee_egp: 60, is_active: true },
+    { governorate: 'Aswan', area: '', fee_egp: 120, is_active: false },
   ];
 
-  const cairo = resolveShippingRate('cairo', rates);
-  assert.equal(cairo.isConfigured, true);
-  assert.equal(cairo.fee, 60);
+  const exact = resolveShippingRate(' cairo ', ' zamalek ', rates);
+  assert.deepEqual(exact, { fee: 75, isConfigured: true });
 
-  const alex = resolveShippingRate('Alexandria', rates);
-  assert.equal(alex.isConfigured, true);
-  assert.equal(alex.fee, 85);
+  const explicitDefault = resolveShippingRate('Cairo', 'Heliopolis', rates);
+  assert.deepEqual(explicitDefault, { fee: 60, isConfigured: true });
 
-  const aswan = resolveShippingRate('Aswan', rates);
-  assert.equal(aswan.isConfigured, false); // inactive
+  const blankAreaUsesDefault = resolveShippingRate('Cairo', '', rates);
+  assert.deepEqual(blankAreaUsesDefault, { fee: 60, isConfigured: true });
 
-  const unconfigured = resolveShippingRate('Matrouh', rates);
-  assert.equal(unconfigured.isConfigured, false);
-  assert.equal(unconfigured.fee, 0);
+  const inactiveAreaUsesDefault = resolveShippingRate('Giza', 'Dokki', rates);
+  assert.deepEqual(inactiveAreaUsesDefault, { fee: 60, isConfigured: true });
+
+  const exactWithoutFallback = resolveShippingRate('Alexandria', 'Borg El Arab', rates);
+  assert.deepEqual(exactWithoutFallback, { fee: 0, isConfigured: false });
+
+  const inactiveDefault = resolveShippingRate('Aswan', 'Any Area', rates);
+  assert.deepEqual(inactiveDefault, { fee: 0, isConfigured: false });
+
+  const unknownGovernorate = resolveShippingRate('Matrouh', 'Marsa Matrouh', rates);
+  assert.deepEqual(unknownGovernorate, { fee: 0, isConfigured: false });
+
+  const ambiguous = resolveShippingRate('Cairo', 'Zamalek', [
+    ...rates,
+    { governorate: 'CAIRO', area: ' ZAMALEK ', fee_egp: 90, is_active: true },
+  ]);
+  assert.deepEqual(ambiguous, { fee: 0, isConfigured: false });
 });
 
 test('computeOrderTotals produces exact totals without negative numbers', () => {
@@ -310,4 +328,44 @@ test('multi-item mixed cart validates ready stock while exempting made_to_order'
   const checkFail = validateStockAvailability(invalidCart, catalog);
   assert.equal(checkFail.valid, false);
   assert.ok(checkFail.errors[0].includes('Insufficient stock'));
+});
+
+test('Phase 6 migration contract preserves sole trigger history, idempotency, cancellation stock restore, and private notes', () => {
+  const migrationDirectory = join(process.cwd(), 'supabase', 'migrations');
+  const migrationName = readdirSync(migrationDirectory).find((name) =>
+    name.endsWith('_phase6_forward_only_order_shipping_integrity.sql')
+  );
+  assert.ok(migrationName, 'the generated Phase 6 migration must exist');
+  const migration = readFileSync(join(migrationDirectory, migrationName), 'utf8');
+
+  const getFunction = (name: string) => {
+    const start = migration.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
+    assert.notEqual(start, -1, `migration must replace public.${name}`);
+    const end = migration.indexOf('$function$;', start);
+    assert.notEqual(end, -1, `public.${name} must have a complete dollar-quoted body`);
+    return migration.slice(start, end + '$function$;'.length);
+  };
+
+  const submit = getFunction('submit_store_order');
+  const updateStatus = getFunction('admin_update_order_status');
+  const lookup = getFunction('lookup_public_order');
+
+  assert.doesNotMatch(submit, /INSERT\s+INTO\s+public\.order_status_history/i);
+  assert.doesNotMatch(updateStatus, /INSERT\s+INTO\s+public\.order_status_history/i);
+  assert.match(migration, /orders_record_status_history/);
+  assert.match(submit, /pg_advisory_xact_lock/);
+  assert.match(submit, /IF FOUND THEN RETURN NEXT; RETURN; END IF;/);
+  assert.match(updateStatus, /v_new_status = 'cancelled'/);
+  assert.match(updateStatus, /stock = stock \+ v_item\.quantity/);
+  assert.match(updateStatus, /admin_notes = coalesce\(p_note, admin_notes\)/i);
+  assert.match(lookup, /CASE WHEN public\.is_admin\(\) THEN h\.note ELSE NULL END/);
+  assert.match(lookup, /o\.tracking_token::text\s*=\s*trim\(p_tracking_token\)/);
+  assert.match(lookup, /length\(regexp_replace\(trim\(p_phone\)/);
+
+  const rateResolution = submit.match(/-- Resolve selected area[\s\S]*?-- End shipping resolution/);
+  assert.ok(rateResolution, 'migration must mark the deterministic shipping-resolution block');
+  assert.match(rateResolution[0], /sr\.area/);
+  assert.match(rateResolution[0], /Multiple active shipping rates/);
+  assert.match(rateResolution[0], /Shipping rate is not configured/);
+  assert.doesNotMatch(rateResolution[0], /LIMIT\s+1/i);
 });

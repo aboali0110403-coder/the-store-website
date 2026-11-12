@@ -48,7 +48,7 @@ import {
   getSignedDesignReferenceUrl,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
-import { CategoryItem } from '../lib/store';
+import { CategoryItem, ShippingRate } from '../lib/store';
 
 type Tab =
   | 'products'
@@ -80,7 +80,7 @@ export default function Admin() {
   const [categoryUploading, setCategoryUploading] = useState(false);
   const [categoryError, setCategoryError] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [shippingRates, setShippingRates] = useState<any[]>([]);
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [customRequests, setCustomRequests] = useState<any[]>([]);
@@ -134,7 +134,10 @@ export default function Admin() {
   const [shippingForm, setShippingForm] = useState({
     id: '',
     governorate: 'Cairo',
+    area: '',
     fee_egp: '60',
+    estimated_min_days: '1',
+    estimated_max_days: '5',
     is_active: true,
   });
 
@@ -467,10 +470,16 @@ export default function Admin() {
       await adminUpsertShippingRate({
         id: shippingForm.id || undefined,
         governorate: shippingForm.governorate.trim(),
+        area: shippingForm.area.trim(),
         fee_egp: Number(shippingForm.fee_egp),
+        estimated_min_days: Number(shippingForm.estimated_min_days),
+        estimated_max_days: Number(shippingForm.estimated_max_days),
         is_active: shippingForm.is_active,
       });
-      setShippingForm({ id: '', governorate: 'Cairo', fee_egp: '60', is_active: true });
+      setShippingForm({
+        id: '', governorate: 'Cairo', area: '', fee_egp: '60',
+        estimated_min_days: '1', estimated_max_days: '5', is_active: true,
+      });
       setStatusMessage('Shipping rate updated.');
       await loadDashboardData();
     } catch (err: any) {
@@ -1799,12 +1808,45 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
+                  <span>{isAr ? 'المنطقة (اتركيها فارغة كسعر افتراضي للمحافظة)' : 'Area (leave blank for governorate default)'}</span>
+                  <input
+                    value={shippingForm.area}
+                    onChange={(e) => setShippingForm({ ...shippingForm, area: e.target.value })}
+                    placeholder={isAr ? 'مثال: الزمالك' : 'e.g. Zamalek'}
+                  />
+                </label>
+
+                <label className="mero-field">
                   <span>Shipping Fee (EGP) *</span>
                   <input
                     type="number"
                     required
                     value={shippingForm.fee_egp}
                     onChange={(e) => setShippingForm({ ...shippingForm, fee_egp: e.target.value })}
+                  />
+                </label>
+
+                <label className="mero-field">
+                  <span>{isAr ? 'أقل مدة توصيل (أيام)' : 'Estimated minimum days'} *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={shippingForm.estimated_min_days}
+                    onChange={(e) => setShippingForm({ ...shippingForm, estimated_min_days: e.target.value })}
+                  />
+                </label>
+
+                <label className="mero-field">
+                  <span>{isAr ? 'أقصى مدة توصيل (أيام)' : 'Estimated maximum days'} *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={shippingForm.estimated_max_days}
+                    onChange={(e) => setShippingForm({ ...shippingForm, estimated_max_days: e.target.value })}
                   />
                 </label>
               </div>
@@ -1832,7 +1874,10 @@ export default function Admin() {
                   <div>
                     <strong>{r.governorate}</strong>
                     <span className="text-xs text-[#806f77] ml-2">
-                      {r.fee_egp} EGP · {r.is_active ? 'Active' : 'Inactive'}
+                      {r.area.trim() ? (isAr ? `المنطقة: ${r.area}` : `Area: ${r.area}`) : (isAr ? 'سعر افتراضي للمحافظة' : 'Governorate default')}
+                    </span>
+                    <span className="text-xs text-[#806f77] ml-2">
+                      {r.fee_egp} EGP · {r.estimated_min_days}–{r.estimated_max_days} days · {r.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -1843,7 +1888,10 @@ export default function Admin() {
                         setShippingForm({
                           id: r.id,
                           governorate: r.governorate,
+                          area: r.area,
                           fee_egp: String(r.fee_egp),
+                          estimated_min_days: String(r.estimated_min_days),
+                          estimated_max_days: String(r.estimated_max_days),
                           is_active: r.is_active,
                         });
                       }}
@@ -2017,7 +2065,7 @@ export default function Admin() {
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder={isAr ? 'ملاحظة التحديث (اختياري)...' : 'Update note (optional)...'}
+                        placeholder={isAr ? 'ملاحظة إدارية خاصة (لا تظهر للعميل)...' : 'Private admin note (not shown to customer)'}
                         value={orderStatusNotes[o.id] || ''}
                         onChange={(e) =>
                           setOrderStatusNotes({

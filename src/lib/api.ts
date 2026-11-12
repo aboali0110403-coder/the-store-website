@@ -10,7 +10,6 @@ import {
   CategoryItem,
   initialCategories,
   initialArtisanProducts,
-  initialShippingRates,
   initialCoupons,
 } from './store';
 import { evaluateCoupon, checkGuestRateLimit } from './commerceLogic';
@@ -145,15 +144,14 @@ export async function fetchShippingRates(): Promise<ShippingRate[]> {
       .from('shipping_rates')
       .select('*')
       .eq('is_active', true)
-      .order('governorate', { ascending: true });
+      .order('governorate', { ascending: true })
+      .order('area', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      return initialShippingRates;
-    }
+    if (error || !data) return [];
 
     return data as ShippingRate[];
-  } catch (err) {
-    return initialShippingRates;
+  } catch {
+    return [];
   }
 }
 
@@ -463,7 +461,8 @@ export async function adminGetShippingRates(): Promise<ShippingRate[]> {
   const { data, error } = await supabase
     .from('shipping_rates')
     .select('*')
-    .order('governorate', { ascending: true });
+    .order('governorate', { ascending: true })
+    .order('area', { ascending: true });
   if (error) throw error;
   return data || [];
 }
@@ -471,15 +470,21 @@ export async function adminGetShippingRates(): Promise<ShippingRate[]> {
 export async function adminUpsertShippingRate(rate: {
   id?: string;
   governorate: string;
+  area: string;
   fee_egp: number;
+  estimated_min_days: number;
+  estimated_max_days: number;
   is_active: boolean;
 }): Promise<any> {
   if (rate.id) {
     const { data, error } = await supabase
       .from('shipping_rates')
       .update({
-        governorate: rate.governorate,
+        governorate: rate.governorate.trim(),
+        area: rate.area.trim(),
         fee_egp: rate.fee_egp,
+        estimated_min_days: rate.estimated_min_days,
+        estimated_max_days: rate.estimated_max_days,
         is_active: rate.is_active,
         updated_at: new Date().toISOString(),
       })
@@ -492,8 +497,11 @@ export async function adminUpsertShippingRate(rate: {
     const { data, error } = await supabase
       .from('shipping_rates')
       .insert([{
-        governorate: rate.governorate,
+        governorate: rate.governorate.trim(),
+        area: rate.area.trim(),
         fee_egp: rate.fee_egp,
+        estimated_min_days: rate.estimated_min_days,
+        estimated_max_days: rate.estimated_max_days,
         is_active: rate.is_active,
       }])
       .select()
