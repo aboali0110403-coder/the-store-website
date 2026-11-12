@@ -32,26 +32,32 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!slug) return;
     let isMounted = true;
-    setLoading(true);
-
-    fetchProductBySlug(slug).then((res) => {
-      if (!isMounted) return;
-      if (res) {
-        setProduct(res);
-        setActiveImage(res.image);
-        if (res.sizes.length > 0) setSelectedSize(res.sizes[0]);
-        if (res.colors.length > 0) setSelectedColor(res.colors[0]);
-      } else {
-        const local = products.find((p) => p.slug === slug);
-        if (local) {
-          setProduct(local);
-          setActiveImage(local.image);
-          if (local.sizes.length > 0) setSelectedSize(local.sizes[0]);
-          if (local.colors.length > 0) setSelectedColor(local.colors[0]);
-        }
+    const local = products.find((p) => p.slug === slug) || null;
+    const applyProduct = (next: Product | null) => {
+      setProduct(next);
+      if (next) {
+        setActiveImage(next.image);
+        setSelectedSize(next.sizes[0] || '');
+        setSelectedColor(next.colors[0] || '');
       }
-      setLoading(false);
-    });
+    };
+
+    // Show the already-loaded catalog item immediately; a stalled detail query
+    // must not leave a known product behind an indefinite loading screen.
+    applyProduct(local);
+    setLoading(!local);
+
+    fetchProductBySlug(slug)
+      .then((res) => {
+        if (!isMounted) return;
+        applyProduct(res || local);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        applyProduct(local);
+        setLoading(false);
+      });
 
     return () => {
       isMounted = false;

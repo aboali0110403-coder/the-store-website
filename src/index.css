@@ -516,9 +516,9 @@ img { display: block; max-width: 100%; }
 
 /* Responsive adjustments */
 @media (max-width: 1080px) {
-  .header-inner { grid-template-columns: auto 1fr auto; }
-  .main-nav { gap: 1rem; }
-  .main-nav a { font-size: 0.9rem; }
+  .header-inner { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; }
+  .main-nav { gap: clamp(0.35rem, 0.75vw, 0.75rem); }
+  .main-nav a { font-size: 0.72rem; letter-spacing: .04em; white-space: nowrap; }
   .craft-layout { gap: 2.5rem; }
   .stats-inner { gap: 2.5rem; }
 }
@@ -1576,5 +1576,4 @@ body.rtl .guide-grid,
   mix-blend-mode: multiply;
   display: block;
 }
-
 
