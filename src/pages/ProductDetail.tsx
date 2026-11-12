@@ -47,20 +47,29 @@ export default function ProductDetail() {
     applyProduct(local);
     setLoading(!local);
 
+    const lookupTimeout = local
+      ? undefined
+      : window.setTimeout(() => {
+          if (isMounted) setLoading(false);
+        }, 8000);
+
     fetchProductBySlug(slug)
       .then((res) => {
         if (!isMounted) return;
+        if (lookupTimeout) window.clearTimeout(lookupTimeout);
         applyProduct(res || local);
         setLoading(false);
       })
       .catch(() => {
         if (!isMounted) return;
+        if (lookupTimeout) window.clearTimeout(lookupTimeout);
         applyProduct(local);
         setLoading(false);
       });
 
     return () => {
       isMounted = false;
+      if (lookupTimeout) window.clearTimeout(lookupTimeout);
     };
   }, [slug, products]);
 
