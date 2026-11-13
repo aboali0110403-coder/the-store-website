@@ -58,6 +58,7 @@ export default function Checkout() {
     order_number: string;
     customer_name: string;
     total: number;
+    shipping: number;
     governorate: string;
   } | null>(null);
   // Reuse the same key on a network retry so the database returns the original order.
@@ -82,8 +83,8 @@ export default function Checkout() {
 
   // Accurate shipping rate from Supabase database
   const shippingInfo = useMemo(() => {
-    return resolveShippingRate(form.governorate, shippingRates);
-  }, [form.governorate, shippingRates]);
+    return resolveShippingRate(form.governorate, form.area, shippingRates);
+  }, [form.governorate, form.area, shippingRates]);
 
   // Overall totals
   const totals = useMemo(() => {
@@ -172,6 +173,15 @@ export default function Checkout() {
       return;
     }
 
+    if (!shippingInfo.isConfigured) {
+      setSubmissionError(
+        isAr
+          ? 'لا يوجد سعر شحن نشط ومحدد لهذه المنطقة. يرجى التواصل مع خدمة العملاء قبل إتمام الطلب.'
+          : 'No active shipping rate is configured for this area. Please contact customer service before placing the order.'
+      );
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -204,6 +214,7 @@ export default function Checkout() {
         order_number: result.order_number,
         customer_name: form.name,
         total: result.total_egp,
+        shipping: result.shipping_egp,
         governorate: form.governorate,
       });
 
@@ -281,6 +292,9 @@ export default function Checkout() {
           <div className="text-xs text-[#806f77] space-y-1 my-2">
             <div>
               {isAr ? 'الإجمالي النهائي:' : 'Final Total:'} <strong>{formatEGP(completedOrder.total, language)}</strong>
+            </div>
+            <div>
+              {isAr ? 'رسوم الشحن:' : 'Shipping Fee:'} <strong>{formatEGP(completedOrder.shipping, language)}</strong>
             </div>
             <div>
               {isAr ? 'وجهة الشحن:' : 'Delivery Destination:'} {completedOrder.governorate}
@@ -645,14 +659,14 @@ export default function Checkout() {
             <div>
               <span>
                 {isAr ? 'رسوم الشحن' : 'Shipping'}
-                {form.governorate ? ` (${form.governorate})` : ''}
+                {form.governorate ? ` (${form.governorate}${form.area ? ` · ${form.area}` : ''})` : ''}
               </span>
               <strong>
                 {form.governorate ? (
                   shippingInfo.isConfigured ? (
                     formatEGP(shippingInfo.fee, language)
                   ) : (
-                    isAr ? 'يُحدد بعد مراجعة العنوان' : 'Calculated after review'
+                    isAr ? 'غير متاح لهذه المنطقة' : 'Unavailable for this area'
                   )
                 ) : (
                   <span className="text-[#806f77] text-[11px]">
@@ -671,7 +685,7 @@ export default function Checkout() {
 
             <div className="summary-total">
               <span>{isAr ? 'الإجمالي النهائي' : 'Final Total'}</span>
-              <strong>{formatEGP(totals.total, language)}</strong>
+              <strong>{shippingInfo.isConfigured ? formatEGP(totals.total, language) : '—'}</strong>
             </div>
           </div>
         </aside>

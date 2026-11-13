@@ -516,11 +516,29 @@ img { display: block; max-width: 100%; }
 
 /* Responsive adjustments */
 @media (max-width: 1080px) {
-  .header-inner { grid-template-columns: auto 1fr auto; }
-  .main-nav { gap: 1rem; }
-  .main-nav a { font-size: 0.9rem; }
+  .header-inner { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; }
+  .main-nav { gap: clamp(0.35rem, 0.75vw, 0.75rem); }
+  .main-nav a { font-size: 0.72rem; letter-spacing: .04em; white-space: nowrap; }
   .craft-layout { gap: 2.5rem; }
   .stats-inner { gap: 2.5rem; }
+}
+
+@media (min-width: 851px) and (max-width: 1080px) {
+  .header-inner { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .mobile-menu-button { display: inline-flex; }
+  .desktop-only { display: none; }
+  .header-inner > .site-logo { justify-self: center; }
+  .header-inner > .site-logo .site-logo-img { height: 42px; width: 42px; }
+  .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
+  .header-inner > .site-logo .wordmark small { font-size: 0.44rem; }
+  .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 2px; padding: 12px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(73,52,63,.15); transform: translateX(-105%); transition: transform .25s ease; }
+  .main-nav { overflow-y: auto; overscroll-behavior: contain; }
+  .main-nav.is-open { transform: translateX(0); }
+  body.rtl .main-nav, .rtl .main-nav { left: auto; right: 0; transform: translateX(105%); }
+  body.rtl .main-nav.is-open, .rtl .main-nav.is-open { transform: translateX(0); }
+  .main-nav a { width: 100%; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; font-weight: 500; }
+  .mobile-nav-top { display: flex; width: 100%; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .menu-backdrop { position: fixed; inset: 0; z-index: 34; display: block; border: 0; background: rgba(35,25,31,.5); }
 }
 
 @media (max-width: 850px) {
@@ -1576,5 +1594,3 @@ body.rtl .guide-grid,
   mix-blend-mode: multiply;
   display: block;
 }
-
-

@@ -55,7 +55,10 @@ export interface Product {
 export interface ShippingRate {
   id: string;
   governorate: string;
+  area: string;
   fee_egp: number;
+  estimated_min_days: number;
+  estimated_max_days: number;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -172,8 +175,8 @@ export const imageUrls = {
   top: '/products/embroidered-top.svg',
 };
 
-// Curated artisan pieces representing Mero Boutique's handcrafted signature catalog
-export const initialArtisanProducts: Product[] = [
+// Curated fixtures are retained for local development, but never seed production UI.
+const curatedArtisanProducts: Product[] = [
   {
     id: 'f87a8101-3142-498c-8547-5121b6d00001',
     slug: 'lotus-heirloom-dress',
@@ -392,29 +395,38 @@ export const initialArtisanProducts: Product[] = [
   },
 ];
 
+export function getInitialArtisanProducts(isDevelopment: boolean): Product[] {
+  return isDevelopment ? curatedArtisanProducts : [];
+}
+
+export const initialArtisanProducts: Product[] =
+  typeof import.meta.env !== 'undefined' && import.meta.env.DEV
+    ? curatedArtisanProducts
+    : [];
+
 export const initialShippingRates: ShippingRate[] = [
-  { id: 'sr-1', governorate: 'Cairo', fee_egp: 60, is_active: true },
-  { id: 'sr-2', governorate: 'Giza', fee_egp: 60, is_active: true },
-  { id: 'sr-3', governorate: 'Alexandria', fee_egp: 85, is_active: true },
-  { id: 'sr-4', governorate: 'Qalyubia', fee_egp: 75, is_active: true },
-  { id: 'sr-5', governorate: 'Dakahlia', fee_egp: 85, is_active: true },
-  { id: 'sr-6', governorate: 'Sharqia', fee_egp: 85, is_active: true },
-  { id: 'sr-7', governorate: 'Gharbia', fee_egp: 85, is_active: true },
-  { id: 'sr-8', governorate: 'Monufia', fee_egp: 80, is_active: true },
-  { id: 'sr-9', governorate: 'Beheira', fee_egp: 90, is_active: true },
-  { id: 'sr-10', governorate: 'Port Said', fee_egp: 90, is_active: true },
-  { id: 'sr-11', governorate: 'Ismailia', fee_egp: 90, is_active: true },
-  { id: 'sr-12', governorate: 'Suez', fee_egp: 90, is_active: true },
-  { id: 'sr-13', governorate: 'Fayoum', fee_egp: 95, is_active: true },
-  { id: 'sr-14', governorate: 'Beni Suef', fee_egp: 95, is_active: true },
-  { id: 'sr-15', governorate: 'Minya', fee_egp: 100, is_active: true },
-  { id: 'sr-16', governorate: 'Assiut', fee_egp: 110, is_active: true },
-  { id: 'sr-17', governorate: 'Sohag', fee_egp: 115, is_active: true },
-  { id: 'sr-18', governorate: 'Qena', fee_egp: 120, is_active: true },
-  { id: 'sr-19', governorate: 'Luxor', fee_egp: 125, is_active: true },
-  { id: 'sr-20', governorate: 'Aswan', fee_egp: 130, is_active: true },
-  { id: 'sr-21', governorate: 'Red Sea', fee_egp: 135, is_active: true },
-  { id: 'sr-22', governorate: 'South Sinai', fee_egp: 140, is_active: true },
+  { id: 'sr-1', governorate: 'Cairo', area: '', fee_egp: 60, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-2', governorate: 'Giza', area: '', fee_egp: 60, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-3', governorate: 'Alexandria', area: '', fee_egp: 85, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-4', governorate: 'Qalyubia', area: '', fee_egp: 75, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-5', governorate: 'Dakahlia', area: '', fee_egp: 85, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-6', governorate: 'Sharqia', area: '', fee_egp: 85, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-7', governorate: 'Gharbia', area: '', fee_egp: 85, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-8', governorate: 'Monufia', area: '', fee_egp: 80, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-9', governorate: 'Beheira', area: '', fee_egp: 90, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-10', governorate: 'Port Said', area: '', fee_egp: 90, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-11', governorate: 'Ismailia', area: '', fee_egp: 90, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-12', governorate: 'Suez', area: '', fee_egp: 90, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-13', governorate: 'Fayoum', area: '', fee_egp: 95, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-14', governorate: 'Beni Suef', area: '', fee_egp: 95, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-15', governorate: 'Minya', area: '', fee_egp: 100, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-16', governorate: 'Assiut', area: '', fee_egp: 110, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-17', governorate: 'Sohag', area: '', fee_egp: 115, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-18', governorate: 'Qena', area: '', fee_egp: 120, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-19', governorate: 'Luxor', area: '', fee_egp: 125, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-20', governorate: 'Aswan', area: '', fee_egp: 130, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-21', governorate: 'Red Sea', area: '', fee_egp: 135, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
+  { id: 'sr-22', governorate: 'South Sinai', area: '', fee_egp: 140, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
 ];
 
 export const initialCoupons: Coupon[] = [
