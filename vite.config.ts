@@ -1,29 +1,19 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
+import { resolveSupabaseConfig } from './src/lib/supabaseConfig.ts';
 
-const SAFE_PUBLISHABLE_KEY = 'sb_publishable_mbcIpQSy7CvVEiuxD6xN_A_KQ9doMpj';
-
-// Security Guard: Prevent any server secrets from accidentally leaking through VITE_ variables
-const rawAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-if (rawAnonKey && (rawAnonKey.startsWith('sb_secret_') || rawAnonKey.includes('service_role') || rawAnonKey.toLowerCase().includes('secret'))) {
-  // Never move or retain a secret key; overwrite the client-facing value.
-  process.env.VITE_SUPABASE_ANON_KEY = SAFE_PUBLISHABLE_KEY;
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY = SAFE_PUBLISHABLE_KEY;
-}
-
-export default defineConfig(() => {
-  const resolvedAnonKey =
-    process.env.VITE_SUPABASE_ANON_KEY && !process.env.VITE_SUPABASE_ANON_KEY.startsWith('sb_secret_')
-      ? process.env.VITE_SUPABASE_ANON_KEY
-      : SAFE_PUBLISHABLE_KEY;
+export default defineConfig(({ mode }) => {
+  const fileEnv = loadEnv(mode, process.cwd(), '');
+  const { url, key } = resolveSupabaseConfig({ ...fileEnv, ...process.env });
 
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(resolvedAnonKey),
-      'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(resolvedAnonKey),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(url),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(key),
+      'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(key),
     },
     resolve: {
       alias: {
