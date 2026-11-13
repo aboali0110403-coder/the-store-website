@@ -14,6 +14,14 @@ import {
 } from './store';
 import { evaluateCoupon, checkGuestRateLimit } from './commerceLogic';
 
+const getDevelopmentCatalogFallback = (): Product[] =>
+  import.meta.env.DEV ? initialArtisanProducts : [];
+
+const getDevelopmentProductFallback = (slug: string): Product | null =>
+  import.meta.env.DEV
+    ? initialArtisanProducts.find((product) => product.slug === slug) || null
+    : null;
+
 /**
  * Maps raw database product row into frontend Product interface
  */
@@ -97,18 +105,18 @@ export async function fetchCatalog(): Promise<Product[]> {
 
     if (error) {
       console.warn('Supabase products fetch note:', error.message);
-      return initialArtisanProducts;
+      return getDevelopmentCatalogFallback();
     }
 
     if (!data || data.length === 0) {
-      // Graceful fallback to verified curated initial catalog
-      return initialArtisanProducts;
+      // Curated fixtures are for Vite development only, never production.
+      return getDevelopmentCatalogFallback();
     }
 
     return data.map(mapProductRow);
   } catch (err) {
     console.error('Catalog fetch error:', err);
-    return initialArtisanProducts;
+    return getDevelopmentCatalogFallback();
   }
 }
 
@@ -120,18 +128,17 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
     const { data, error } = await supabase
       .from('products')
       .select('*, product_images(*), product_variants(*)')
+      .eq('is_published', true)
       .eq('slug', slug)
       .maybeSingle();
 
     if (error || !data) {
-      const fallback = initialArtisanProducts.find((p) => p.slug === slug);
-      return fallback || null;
+      return getDevelopmentProductFallback(slug);
     }
 
     return mapProductRow(data);
   } catch (err) {
-    const fallback = initialArtisanProducts.find((p) => p.slug === slug);
-    return fallback || null;
+    return getDevelopmentProductFallback(slug);
   }
 }
 

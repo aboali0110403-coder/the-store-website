@@ -13,6 +13,7 @@ import {
 import { useBoutique } from '../components/SiteShell';
 import { Product, ProductGalleryImage } from '../lib/store';
 import { fetchProductBySlug } from '../lib/api';
+import { getProductSpecificationRows } from '../lib/productPresentation';
 import { formatEGP } from '../lib/commerceLogic';
 
 export default function ProductDetail() {
@@ -30,9 +31,12 @@ export default function ProductDetail() {
   const [addedNotice, setAddedNotice] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug) {
+      setProduct(null);
+      setLoading(false);
+      return;
+    }
     let isMounted = true;
-    const local = products.find((p) => p.slug === slug) || null;
     const applyProduct = (next: Product | null) => {
       setProduct(next);
       if (next) {
@@ -42,36 +46,33 @@ export default function ProductDetail() {
       }
     };
 
-    // Show the already-loaded catalog item immediately; a stalled detail query
-    // must not leave a known product behind an indefinite loading screen.
-    applyProduct(local);
-    setLoading(!local);
-
-    const lookupTimeout = local
-      ? undefined
-      : window.setTimeout(() => {
-          if (isMounted) setLoading(false);
-        }, 8000);
+    // Resolve details from the authoritative slug lookup only. The catalog
+    // can change while it loads and must not trigger a duplicate detail query.
+    setProduct(null);
+    setLoading(true);
+    const lookupTimeout = window.setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 8000);
 
     fetchProductBySlug(slug)
       .then((res) => {
         if (!isMounted) return;
-        if (lookupTimeout) window.clearTimeout(lookupTimeout);
-        applyProduct(res || local);
+        window.clearTimeout(lookupTimeout);
+        applyProduct(res);
         setLoading(false);
       })
       .catch(() => {
         if (!isMounted) return;
-        if (lookupTimeout) window.clearTimeout(lookupTimeout);
-        applyProduct(local);
+        window.clearTimeout(lookupTimeout);
+        applyProduct(null);
         setLoading(false);
       });
 
     return () => {
       isMounted = false;
-      if (lookupTimeout) window.clearTimeout(lookupTimeout);
+      window.clearTimeout(lookupTimeout);
     };
-  }, [slug, products]);
+  }, [slug]);
 
   // Gallery images combined: main product image + product_images table gallery
   const allImages = useMemo(() => {
@@ -110,6 +111,11 @@ export default function ProductDetail() {
     }
     return product.stock;
   }, [product, hasConfiguredVariants, currentVariant]);
+
+  const specificationRows = useMemo(
+    () => getProductSpecificationRows(product, language),
+    [product, language]
+  );
 
   const isInventoryControlled =
     product?.production === 'ready' || product?.production === 'limited';
@@ -392,16 +398,19 @@ export default function ProductDetail() {
 
             {/* Accordion Details */}
             <div className="detail-accordions">
-              <details open>
-                <summary>{isAr ? 'الخامة وتقنية التطريز' : 'Fabric & Embroidery Technique'}</summary>
-                <p>
-                  <strong>{isAr ? 'الخامة: ' : 'Fabric: '}</strong>
-                  {isAr ? product.fabricAr : product.fabric}
-                  <br />
-                  <strong>{isAr ? 'تقنية التطريز: ' : 'Technique: '}</strong>
-                  {isAr ? product.techniqueAr : product.technique}
-                </p>
-              </details>
+              {specificationRows.length > 0 && (
+                <details open>
+                  <summary>{isAr ? 'الخامة وتقنية التطريز' : 'Fabric & Embroidery Technique'}</summary>
+                  <p>
+                    {specificationRows.map((row) => (
+                      <span key={row.key} className="block">
+                        <strong>{row.label}: </strong>
+                        {row.value}
+                      </span>
+                    ))}
+                  </p>
+                </details>
+              )}
 
               <details>
                 <summary>{isAr ? 'إرشادات العناية والحفظ' : 'Care & Maintenance'}</summary>

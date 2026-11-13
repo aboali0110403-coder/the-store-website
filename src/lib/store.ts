@@ -175,8 +175,8 @@ export const imageUrls = {
   top: '/products/embroidered-top.svg',
 };
 
-// Curated artisan pieces representing Mero Boutique's handcrafted signature catalog
-export const initialArtisanProducts: Product[] = [
+// Curated fixtures are retained for local development, but never seed production UI.
+const curatedArtisanProducts: Product[] = [
   {
     id: 'f87a8101-3142-498c-8547-5121b6d00001',
     slug: 'lotus-heirloom-dress',
@@ -394,6 +394,15 @@ export const initialArtisanProducts: Product[] = [
     ],
   },
 ];
+
+export function getInitialArtisanProducts(isDevelopment: boolean): Product[] {
+  return isDevelopment ? curatedArtisanProducts : [];
+}
+
+export const initialArtisanProducts: Product[] =
+  typeof import.meta.env !== 'undefined' && import.meta.env.DEV
+    ? curatedArtisanProducts
+    : [];
 
 export const initialShippingRates: ShippingRate[] = [
   { id: 'sr-1', governorate: 'Cairo', area: '', fee_egp: 60, estimated_min_days: 1, estimated_max_days: 5, is_active: true },
