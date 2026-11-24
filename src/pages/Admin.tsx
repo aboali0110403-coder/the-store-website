@@ -2342,6 +2342,12 @@ export default function Admin() {
                 </select>
               </div>
             </div>
+            {orders.length === 0 && (
+              <p className="mero-empty">{readStates.orders === 'loaded' ? (isAr ? 'لا توجد طلبات بعد. تظهر الطلبات الجديدة هنا فور وصولها.' : 'No orders yet. New orders appear here as soon as they arrive.') : (isAr ? 'تعذر تأكيد خلو الطلبات حتى تنجح القراءة.' : 'Orders cannot be confirmed empty until the read succeeds.')}</p>
+            )}
+            {orders.length > 0 && orders.filter((o) => (orderStatusFilter === 'all' || o.status === orderStatusFilter)).length === 0 && (
+              <p className="mero-empty">{isAr ? 'لا توجد طلبات بهذه الحالة.' : 'No orders with this status.'}</p>
+            )}
             {orders
               .filter((o) => {
                 const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
@@ -2358,7 +2364,7 @@ export default function Admin() {
               .map((o) => (
                 <article key={o.id} className="mero-record flex-col items-start gap-3">
                   <div className="w-full flex justify-between items-start">
-                    <div>
+                    <div className="admin-record-fields">
                       <strong>
                         {o.order_number} · {o.customer_name}{' '}
                         {o.phone ? (
@@ -2380,7 +2386,7 @@ export default function Admin() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="admin-record-actions flex items-center gap-2">
                       <input
                         type="text"
                         placeholder={isAr ? 'ملاحظة إدارية خاصة (لا تظهر للعميل)...' : 'Private admin note (not shown to customer)'}
@@ -2484,7 +2490,7 @@ export default function Admin() {
               customRequests.map((r) => (
                 <article key={r.id} className="mero-record flex-col items-start gap-2">
                   <div className="w-full flex justify-between items-start">
-                    <div>
+                    <div className="admin-record-fields">
                       <strong>
                         {r.request_number} · {r.customer_name}{' '}
                         {r.phone ? (

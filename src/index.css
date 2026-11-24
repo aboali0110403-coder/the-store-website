@@ -1904,3 +1904,18 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .admin-shell .solid-button { border-radius: 10px; }
 .admin-shell .mero-editor [class*="border bg-white p-4"] > [class*="justify-between"] { flex-direction: column; align-items: stretch; gap: 8px; }
 .admin-shell .mero-editor [class*="border bg-white p-4"] > [class*="justify-between"] .solid-button { width: 100%; justify-content: center; white-space: normal; text-align: center; line-height: 1.3; }
+
+/* Readability pass: grouped fields, action hierarchy, responsive upload */
+.admin-shell .admin-record-fields { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.admin-shell .admin-record-fields small { display: block; }
+.admin-shell .admin-record-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+.admin-shell .mero-editor [class*="border bg-white p-4"] > [class*="justify-between"] .solid-button { font-size: .75rem; padding: 7px 10px; letter-spacing: .03em; min-height: 0; }
+.admin-shell [class*="bg-[#fffaf8]"] .outline-button { white-space: normal; text-align: center; line-height: 1.35; }
+@media (max-width: 850px) {
+  .admin-shell article.mero-record > div[class*="justify-between"] { flex-direction: column; gap: 10px; }
+  .admin-shell .admin-record-actions { justify-content: stretch; }
+  .admin-shell [class*="bg-[#fffaf8]"] [class*="flex items-center gap-3"] { flex-wrap: wrap; }
+  .admin-shell [class*="bg-[#fffaf8]"] [class*="flex items-center justify-between"] { flex-wrap: wrap; gap: 6px; }
+  .admin-shell [class*="bg-[#fffaf8]"] [class*="flex items-center justify-between"] > * { min-width: 0; }
+  .admin-shell [class*="bg-[#fffaf8]"] .outline-button { flex: 1 1 auto; justify-content: center; min-height: 46px; }
+}
