@@ -1901,3 +1901,7 @@ body.rtl .guide-grid,
   width: min(320px, 100%);
   justify-content: center;
 }
+
+/* Payment option label readability */
+.payment-option strong { display: block; margin-bottom: 4px; color: var(--burgundy); }
+.payment-option span { display: block; color: var(--muted); font-size: 0.88rem; line-height: 1.55; }
