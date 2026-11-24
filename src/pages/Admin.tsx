@@ -180,10 +180,10 @@ export default function Admin() {
 
   const [variantForm, setVariantForm] = useState({
     id: '',
-    size: 'M',
-    color: 'Dusty Rose',
+    size: '',
+    color: '',
     sku: '',
-    stock: '5',
+    stock: '0',
     is_active: true,
   });
 
@@ -528,7 +528,7 @@ export default function Admin() {
         stock: Number(variantForm.stock),
         is_active: variantForm.is_active,
       });
-      setVariantForm({ id: '', size: 'M', color: 'Dusty Rose', sku: '', stock: '5', is_active: true });
+      setVariantForm({ id: '', size: '', color: '', sku: '', stock: '0', is_active: true });
       setStatusMessage('Variant updated.');
       await loadDashboardData();
     } catch (err: any) {
