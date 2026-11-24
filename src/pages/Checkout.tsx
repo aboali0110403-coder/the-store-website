@@ -388,37 +388,44 @@ export default function Checkout() {
           </div>
 
           <div className="form-grid">
-            <div className="form-field">
-              <span>
+              <div className="form-field">
+              <label htmlFor="checkout-name">
                 {isAr ? 'الاسم بالكامل' : 'Full Name'} <em>*</em>
-              </span>
+              </label>
               <input
+                id="checkout-name"
+                aria-invalid={Boolean(fieldErrors.name)}
+                aria-describedby={fieldErrors.name ? 'checkout-name-error' : undefined}
                 type="text"
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder={isAr ? 'مثال: نورهان أحمد' : 'e.g. Layla Hassan'}
               />
-              {fieldErrors.name && <span className="text-[11px] text-[#a34d55]">{fieldErrors.name}</span>}
+              {fieldErrors.name && <span id="checkout-name-error" className="text-[11px] text-[#a34d55]">{fieldErrors.name}</span>}
             </div>
 
             <div className="form-field">
-              <span>
+              <label htmlFor="checkout-phone">
                 {isAr ? 'رقم الهاتف (للتوصيل)' : 'Phone Number'} <em>*</em>
-              </span>
+              </label>
               <input
+                id="checkout-phone"
+                aria-invalid={Boolean(fieldErrors.phone)}
+                aria-describedby={fieldErrors.phone ? 'checkout-phone-error' : undefined}
                 type="tel"
                 required
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="01012345678"
               />
-              {fieldErrors.phone && <span className="text-[11px] text-[#a34d55]">{fieldErrors.phone}</span>}
+              {fieldErrors.phone && <span id="checkout-phone-error" className="text-[11px] text-[#a34d55]">{fieldErrors.phone}</span>}
             </div>
 
             <div className="form-field">
-              <span>{isAr ? 'البريد الإلكتروني (اختياري)' : 'Email Address (Optional)'}</span>
+              <label htmlFor="checkout-email">{isAr ? 'البريد الإلكتروني (اختياري)' : 'Email Address (Optional)'}</label>
               <input
+                id="checkout-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -427,10 +434,13 @@ export default function Checkout() {
             </div>
 
             <div className="form-field">
-              <span>
+              <label htmlFor="checkout-governorate">
                 {isAr ? 'المحافظة' : 'Governorate'} <em>*</em>
-              </span>
+              </label>
               <select
+                id="checkout-governorate"
+                aria-invalid={Boolean(fieldErrors.governorate)}
+                aria-describedby={fieldErrors.governorate ? 'checkout-governorate-error' : undefined}
                 required
                 value={form.governorate}
                 onChange={(e) => setForm({ ...form, governorate: e.target.value })}
@@ -443,15 +453,18 @@ export default function Checkout() {
                 ))}
               </select>
               {fieldErrors.governorate && (
-                <span className="text-[11px] text-[#a34d55]">{fieldErrors.governorate}</span>
+                <span id="checkout-governorate-error" className="text-[11px] text-[#a34d55]">{fieldErrors.governorate}</span>
               )}
             </div>
 
             <div className="form-field">
-              <span>
+              <label htmlFor="checkout-area">
                 {isAr ? 'المدينة أو المنطقة' : 'City / Area'} <em>*</em>
-              </span>
+              </label>
               <input
+                id="checkout-area"
+                aria-invalid={Boolean(fieldErrors.city_area)}
+                aria-describedby={fieldErrors.city_area ? 'checkout-area-error' : undefined}
                 type="text"
                 required
                 value={form.area}
@@ -459,15 +472,18 @@ export default function Checkout() {
                 placeholder={isAr ? 'المعادي / التجمع / سموحة…' : 'e.g. New Cairo / Zamalek'}
               />
               {fieldErrors.city_area && (
-                <span className="text-[11px] text-[#a34d55]">{fieldErrors.city_area}</span>
+                <span id="checkout-area-error" className="text-[11px] text-[#a34d55]">{fieldErrors.city_area}</span>
               )}
             </div>
 
             <div className="form-field form-field-wide">
-              <span>
+              <label htmlFor="checkout-address">
                 {isAr ? 'العنوان بالتفصيل' : 'Street & Building Address'} <em>*</em>
-              </span>
+              </label>
               <textarea
+                id="checkout-address"
+                aria-invalid={Boolean(fieldErrors.address)}
+                aria-describedby={fieldErrors.address ? 'checkout-address-error' : undefined}
                 required
                 rows={2}
                 value={form.address}
@@ -479,13 +495,14 @@ export default function Checkout() {
                 }
               />
               {fieldErrors.address && (
-                <span className="text-[11px] text-[#a34d55]">{fieldErrors.address}</span>
+                <span id="checkout-address-error" className="text-[11px] text-[#a34d55]">{fieldErrors.address}</span>
               )}
             </div>
 
             <div className="form-field form-field-wide">
-              <span>{isAr ? 'ملاحظات إضافية للتوصيل' : 'Delivery Notes'}</span>
+              <label htmlFor="checkout-notes">{isAr ? 'ملاحظات إضافية للتوصيل' : 'Delivery Notes'}</label>
               <textarea
+                id="checkout-notes"
                 rows={2}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -500,9 +517,7 @@ export default function Checkout() {
             <div>
               <h2>{isAr ? 'طريقة السداد' : 'Payment Method'}</h2>
               <p>
-                {isAr
-                  ? 'الدفع عند الاستلام بعد معاينة وفحص القطعة.'
-                  : 'Cash on Delivery upon physical inspection of garment.'}
+                {isAr ? 'الدفع نقدًا عند استلام الطلب.' : 'Cash on delivery when your order arrives.'}
               </p>
             </div>
           </div>
@@ -512,11 +527,7 @@ export default function Checkout() {
               <input type="radio" name="payment_method" defaultChecked readOnly />
               <div>
                 <strong>{isAr ? 'الدفع نقداً عند الاستلام (COD)' : 'Cash on Delivery (COD)'}</strong>
-                <span>
-                  {isAr
-                    ? 'يحق لكِ فحص وتجربة القطعة والتأكد من المقاس والتطريز قبل دفع المبلغ للمندوب.'
-                    : 'You have full right to open and inspect the piece before handing payment to the courier.'}
-                </span>
+                <span>{isAr ? 'تُدفع قيمة الطلب عند استلامه من المندوب.' : 'Payment is collected by the courier when the order is delivered.'}</span>
               </div>
               <ShieldCheck size={20} className="text-[#c4a46d]" />
             </label>
@@ -553,7 +564,7 @@ export default function Checkout() {
           </label>
 
           {submissionError && (
-            <p className="form-error" role="alert">
+            <p className="form-error" role="alert" aria-live="assertive">
               {submissionError}
             </p>
           )}
@@ -561,16 +572,22 @@ export default function Checkout() {
           <button
             type="submit"
             className="solid-button full-width checkout-submit"
-            disabled={saving}
+            disabled={saving || !shippingInfo.isConfigured}
+            aria-describedby={!shippingInfo.isConfigured ? 'checkout-shipping-guidance' : undefined}
           >
             {saving
               ? isAr
                 ? 'جارٍ تسجيل الطلب في النظام…'
                 : 'Recording order…'
-              : isAr
-              ? `تأكيد الطلب بمبلغ ${formatEGP(totals.total, language)}`
-              : `Submit Order · ${formatEGP(totals.total, language)}`}
+              : shippingInfo.isConfigured
+                ? isAr ? `تأكيد الطلب بمبلغ ${formatEGP(totals.total, language)}` : `Submit Order · ${formatEGP(totals.total, language)}`
+                : isAr ? 'اختاري منطقة شحن متاحة لحساب الإجمالي' : 'Select a supported shipping area to calculate total'}
           </button>
+          {!shippingInfo.isConfigured && (
+            <p id="checkout-shipping-guidance" className="checkout-shipping-guidance" role="status">
+              {isAr ? 'لا يمكن تأكيد الطلب قبل تحديد سعر شحن نشط لمنطقتك.' : 'An active shipping rate is required before the order can be confirmed.'}
+            </p>
+          )}
 
           <p className="checkout-disclaimer">
             {isAr
@@ -592,7 +609,7 @@ export default function Checkout() {
                 key={`${item.productId}-${item.size}-${item.color}`}
                 className="summary-item"
               >
-                <img src={product.image} alt={product.alt} />
+                {product.image ? <img src={product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} /> : <span className="cart-image-unavailable" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'} />}
                 <div>
                   <h3>{isAr ? product.nameAr : product.name}</h3>
                   <p>
@@ -608,9 +625,6 @@ export default function Checkout() {
 
           {/* Coupon Input Workflow */}
           <div className="border-t border-[rgba(73,52,63,0.16)] pt-4 mt-4">
-            <span className="text-[11px] font-semibold text-[#49343f] uppercase tracking-wider block mb-2">
-              {isAr ? 'كوبون الخصم' : 'Promotion or Gift Code'}
-            </span>
             {appliedCoupon ? (
               <div className="flex items-center justify-between bg-[#fffaf8] border border-[#c4a46d] p-2.5">
                 <div className="flex items-center gap-2 text-xs text-[#567c4b] font-medium">
@@ -628,25 +642,23 @@ export default function Checkout() {
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={isAr ? 'مثال: MERO10' : 'Code (e.g. MERO10)'}
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  className="flex-1 h-9 px-3 border border-[rgba(73,52,63,0.2)] bg-white text-xs uppercase"
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyCoupon}
-                  className="outline-button min-h-[36px] px-3 text-xs"
-                >
-                  {isAr ? 'تطبيق' : 'Apply'}
-                </button>
-              </div>
+              <>
+                <label htmlFor="checkout-coupon" className="text-[11px] font-semibold text-[#49343f] uppercase tracking-wider block mb-2">{isAr ? 'كوبون الخصم' : 'Promotion or Gift Code'}</label>
+                <div className="flex gap-2">
+                  <input
+                    id="checkout-coupon"
+                    type="text"
+                    placeholder={isAr ? 'مثال: MERO10' : 'Code (e.g. MERO10)'}
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="flex-1 h-9 px-3 border border-[rgba(73,52,63,0.2)] bg-white text-xs uppercase"
+                  />
+                  <button type="button" onClick={handleApplyCoupon} className="outline-button min-h-[36px] px-3 text-xs">{isAr ? 'تطبيق' : 'Apply'}</button>
+                </div>
+              </>
             )}
-            {couponError && <p className="text-[11px] text-[#a34d55] mt-1 m-0">{couponError}</p>}
-            {couponSuccess && <p className="text-[11px] text-[#567c4b] mt-1 m-0">{couponSuccess}</p>}
+            {couponError && <p className="text-[11px] text-[#a34d55] mt-1 m-0" role="alert">{couponError}</p>}
+            {couponSuccess && <p className="text-[11px] text-[#567c4b] mt-1 m-0" role="status" aria-live="polite">{couponSuccess}</p>}
           </div>
 
           {/* Subtotal, Shipping, Discount, Total */}

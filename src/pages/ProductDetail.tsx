@@ -40,7 +40,7 @@ export default function ProductDetail() {
     const applyProduct = (next: Product | null) => {
       setProduct(next);
       if (next) {
-        setActiveImage(next.image);
+        setActiveImage(next.image || next.images?.find((image) => image.image_url)?.image_url || '');
         setSelectedSize(next.sizes[0] || '');
         setSelectedColor(next.colors[0] || '');
       }
@@ -77,7 +77,7 @@ export default function ProductDetail() {
   // Gallery images combined: main product image + product_images table gallery
   const allImages = useMemo(() => {
     if (!product) return [];
-    const list: string[] = [product.image];
+    const list: string[] = product.image ? [product.image] : [];
     if (product.images && product.images.length > 0) {
       product.images.forEach((img) => {
         if (img.image_url && !list.includes(img.image_url)) {
@@ -185,7 +185,13 @@ export default function ProductDetail() {
           <div className="product-gallery">
             <div className="gallery-main">
               {product.badge && <span className="product-badge">{product.badge}</span>}
-              <img src={activeImage || product.image} alt={product.alt} />
+              {(activeImage || product.image) ? (
+                <img src={activeImage || product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} />
+              ) : (
+                <div className="gallery-image-unavailable" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}>
+                  {isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}
+                </div>
+              )}
             </div>
 
             {allImages.length > 1 && (
@@ -451,7 +457,7 @@ export default function ProductDetail() {
                 <article key={rel.id} className="product-card">
                   <div className="product-image-wrap">
                     <Link href={`/shop/${rel.slug}`} className="product-image-link">
-                      <img src={rel.image} alt={rel.alt} />
+                        {rel.image ? <img src={rel.image} alt={rel.alt || (isAr ? rel.nameAr : rel.name)} /> : <span className="product-image-placeholder" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}>{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
                     </Link>
                   </div>
                   <div className="product-card-copy">

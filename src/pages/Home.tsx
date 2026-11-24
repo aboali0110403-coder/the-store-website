@@ -1,379 +1,150 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Sparkles, Heart, Plus } from 'lucide-react';
+import { ArrowRight, Heart, Plus } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
-import { collections, copy } from '../lib/store';
 import { formatEGP } from '../lib/commerceLogic';
 
 export default function Home() {
-  const { language, products, categories, toggleWishlist, isWishlisted, addToBag } = useBoutique();
+  const { language, products, categories, toggleWishlist, isWishlisted, addToBag, loadingCatalog, catalogReadStatus } = useBoutique();
   const isAr = language === 'ar';
-  const t = copy[language];
-
-  const featuredProducts = products.filter((p) => p.isFeatured).slice(0, 3);
-  const displayProducts = featuredProducts.length > 0 ? featuredProducts : products.slice(0, 3);
+  const pieces = products.filter((product) => product.isPublished !== false);
+  const featured = pieces.find((product) => product.isFeatured) || pieces[0];
+  const liveCategories = categories.filter((category) => category.is_published !== false).length > 0
+    ? categories.filter((category) => category.is_published !== false)
+    : Array.from(new Map(pieces.map((product) => [product.category, {
+        filter: product.category,
+        name: product.category,
+        nameAr: product.categoryAr,
+        id: `live-${product.category}`,
+        is_published: true,
+      }])).values());
 
   return (
-    <main>
-      {/* Editorial Split Hero Section */}
-      <section className="hero-section">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <span className="eyebrow-line" />
-            <span>MERO BOUTIQUE · CAIRO</span>
-          </div>
-          <h1>{t.wearArt}</h1>
-          <p>{t.heroText}</p>
-          <div className="hero-actions">
+    <main className="atelier-home">
+      <section className="atelier-opening">
+        <div className="atelier-opening-copy">
+          <h1>{isAr ? 'قطعة تُصنع بيد واحدة، غرزةً بعد غرزة.' : 'One maker. Each piece, stitch by stitch.'}</h1>
+          <p className="atelier-origin atelier-location">{isAr ? 'ميرو بوتيك · المنصورة، مصر' : 'Mero Boutique · Mansoura, Egypt'}</p>
+          <p className="atelier-intro">
+            {isAr
+              ? 'مشغل مستقل تديره مؤسسته؛ تصمم وتخيط وتطرز بنفسها. نحو خمس سنوات من العمل والتواصل المباشر مع عميلاتها.'
+              : 'An independent atelier run by its founder, who designs, sews and hand-embroiders each piece. About five years of craft and direct customer relationships.'}
+          </p>
+          <div className="atelier-actions">
             <Link href="/shop" className="solid-button">
-              {t.explore}
-              <ArrowRight size={15} />
+              {isAr ? 'تصفحي الكتالوج' : 'Browse the live catalog'} <ArrowRight size={16} aria-hidden="true" />
             </Link>
             <Link href="/custom-design" className="outline-button">
-              {t.customDesign}
+              {isAr ? 'ابدئي طلب تصميم خاص' : 'Start a custom request'}
             </Link>
           </div>
-          <div className="hero-note">
-            <span className="hero-note-mark" aria-hidden="true">
-              <img src="/mero-logo-256.png" alt="Mero Monogram" className="hero-note-logo" />
-            </span>
-            <span>
-              {isAr
-                ? 'كل قطعة هي تحفة فنية صنعت بكل شغف و إتقان في ورشتي الصغيرة'
-                : 'Every piece is an artistic masterpiece crafted with passion and perfection in my small atelier.'}
-            </span>
-          </div>
-        </div>
-        <div className="hero-image-wrap">
-          <img
-            src="/products/embroidered-dress.svg"
-            alt="Mero Boutique Signature Hand-Embroidered Gown"
-          />
-          <div className="hero-image-caption">
-            <span>{isAr ? 'قطعة الموسم الحصرية' : 'Signature Edition'}</span>
-            <span>{isAr ? 'كتان وحرير مصري نقي' : 'Pure Egyptian Silk-Linen'}</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Intro Motto Strip */}
-      <div className="intro-strip">
-        <div className="container intro-strip-inner">
-          <p>
-            {isAr
-              ? '«نحن لا نصنع مجرد أزياء، بل نحيي تراث التطريز اليدوي لترتديه المرأة الواثقة كلوحة فنية تنبض بالحياة»'
-              : '“We curate garments not as fleeting trends, but as enduring heirlooms that celebrate the poise of the modern woman.”'}
+          <p className="atelier-owner-note">
+            {isAr ? 'مُصمّمة، خيّاطة، ومطرّزة — كل ذلك بيد المؤسسة.' : 'Designed, sewn and embroidered by the founder.'}
           </p>
-          <Link href="/our-story" className="circle-arrow" aria-label="Our Story">
-            <ArrowRight size={18} />
-          </Link>
         </div>
-      </div>
 
-      {/* Circular Categories Grid */}
-      <section className="section">
-        <div className="container">
-          <div className="section-heading-row">
-            <div>
-              <span className="eyebrow">
-                <span className="eyebrow-line" />
-                {isAr ? 'التصنيفات' : 'Categories'}
-              </span>
-              <h2>{isAr ? 'تسوقي حسب التصنيف' : 'Explore By Category'}</h2>
+        <div className="atelier-feature" aria-live="polite">
+          {featured ? (
+            <>
+              <Link href={`/shop/${featured.slug}`} className="atelier-feature-image" aria-label={`${isAr ? featured.nameAr : featured.name} — ${isAr ? 'عرض التفاصيل' : 'view piece'}`}>
+                {featured.image ? <img src={featured.image} alt={featured.alt || (isAr ? featured.nameAr : featured.name)} /> : (
+                  <span className="atelier-image-unavailable">{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>
+                )}
+              </Link>
+              <div className="atelier-feature-caption">
+                <div>
+                  <span>{isAr ? 'من الكتالوج المنشور' : 'From the published catalog'}</span>
+                  <h2><Link href={`/shop/${featured.slug}`}>{isAr ? featured.nameAr : featured.name}</Link></h2>
+                  <p>{formatEGP(featured.price, language)} <span aria-hidden="true">·</span> {isAr ? featured.categoryAr : featured.category}</p>
+                </div>
+                <button
+                  type="button"
+                  className={`atelier-save ${isWishlisted(featured.id) ? 'is-saved' : ''}`}
+                  onClick={() => toggleWishlist(featured.id)}
+                  aria-label={isWishlisted(featured.id) ? (isAr ? 'إزالة من المفضلة' : 'Remove from wishlist') : (isAr ? 'إضافة إلى المفضلة' : 'Add to wishlist')}
+                >
+                  <Heart size={18} fill={isWishlisted(featured.id) ? 'currentColor' : 'none'} aria-hidden="true" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="atelier-feature-empty">
+              <span>{loadingCatalog ? (isAr ? 'جارٍ تحديث الكتالوج' : 'Refreshing the catalog') : (isAr ? 'الكتالوج المنشور' : 'Published catalog')}</span>
+              <p>{loadingCatalog
+                ? (isAr ? 'جارٍ تحميل القطع المنشورة…' : 'Loading published pieces…')
+                : catalogReadStatus === 'unavailable'
+                  ? (isAr ? 'تعذر تحميل القطع الآن. يمكنك إرسال طلب تصميم خاص.' : 'Pieces could not be loaded right now. You can still send a custom request.')
+                  : (isAr ? 'لا توجد قطع منشورة للعرض حاليًا. يمكنك طلب تصميم خاص.' : 'There are no published pieces to show right now. You can request a custom design.')}</p>
             </div>
-            <Link href="/shop" className="text-link">
-              {t.shopAll} <ArrowRight size={14} />
-            </Link>
-          </div>
+          )}
+        </div>
+      </section>
 
-          <div className="category-grid">
-            {categories.map((cat, index) => (
-              <Link
-                key={cat.filter}
-                href={`/shop?category=${encodeURIComponent(cat.filter)}`}
-                className="category-card"
-              >
-                <div className="category-image">
-                  <span className="category-index">0{index + 1}</span>
-                  <img src={cat.image} alt={cat.name} />
-                </div>
-                <div className="category-label">
-                  <span>{isAr ? cat.nameAr : cat.name}</span>
-                  <Sparkles size={13} />
-                </div>
+      {liveCategories.length > 0 && (
+        <section className="atelier-categories" aria-labelledby="atelier-categories-title">
+          <div className="atelier-section-heading">
+            <div>
+              <h2 id="atelier-categories-title">{isAr ? 'تصفحي حسب التصنيف' : 'Browse by category'}</h2>
+            </div>
+            <Link className="text-link" href="/shop">{isAr ? 'كل القطع' : 'All pieces'} <ArrowRight size={15} aria-hidden="true" /></Link>
+          </div>
+          <nav className="atelier-category-links" aria-label={isAr ? 'تصنيفات الكتالوج' : 'Catalog categories'}>
+            {liveCategories.map((category) => (
+              <Link key={category.id || category.filter} href={`/shop?category=${encodeURIComponent(category.filter)}`}>
+                <span>{isAr ? category.nameAr : category.name}</span>
+                <ArrowRight size={15} aria-hidden="true" />
               </Link>
             ))}
-          </div>
-        </div>
-      </section>
+          </nav>
+        </section>
+      )}
 
-      {/* Featured Pieces */}
-      <section className="section products-section" style={{ background: '#fffaf8' }}>
-        <div className="container">
-          <div className="section-heading-row">
-            <div>
-              <span className="eyebrow">
-                <span className="eyebrow-line" />
-                {isAr ? 'مختارات الموسم' : 'Curated Selection'}
-              </span>
-              <h2>{isAr ? 'أحدث الإبداعات الحصرية' : 'Exclusive Arrivals'}</h2>
-            </div>
-            <Link href="/shop" className="text-link">
-              {isAr ? 'عرض الكتالوج الكامل' : 'View Full Catalog'} <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="product-grid">
-            {displayProducts.map((product) => {
-              const wish = isWishlisted(product.id);
-              const isStockControlled =
-                product.production === 'ready' || product.production === 'limited';
-              const isSoldOut = isStockControlled && product.stock <= 0;
-
-              return (
-                <article key={product.id} className="product-card">
-                  <div className="product-image-wrap">
-                    {isSoldOut ? (
-                      <span className="product-badge" style={{ background: '#a34d55' }}>
-                        {isAr ? 'نفدت الكمية' : 'Out of Stock'}
-                      </span>
-                    ) : product.badge ? (
-                      <span className="product-badge">{product.badge}</span>
-                    ) : null}
-                    <button
-                      type="button"
-                      className={`wishlist-button ${wish ? 'is-saved' : ''}`}
-                      onClick={() => toggleWishlist(product.id)}
-                      aria-label="Save to wishlist"
-                    >
-                      <Heart size={16} fill={wish ? 'currentColor' : 'none'} />
-                    </button>
-                    <Link href={`/shop/${product.slug}`} className="product-image-link">
-                      <img src={product.image} alt={product.alt} />
-                    </Link>
-                    <Link href={`/shop/${product.slug}`} className="quick-view">
-                      {isAr ? 'عرض التفاصيل' : 'View Piece'}
-                    </Link>
-                  </div>
-                  <div className="product-card-copy">
-                    <div className="product-card-heading">
-                      <h3>
-                        <Link href={`/shop/${product.slug}`}>
-                          {isAr ? product.nameAr : product.name}
-                        </Link>
-                      </h3>
-                      <button
-                        type="button"
-                        className={`add-mini ${isSoldOut ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        disabled={isSoldOut}
-                        onClick={() => {
-                          if (isSoldOut) return;
-                          addToBag(
-                            product.id,
-                            product.sizes[0] || 'Standard',
-                            product.colors[0] || 'Signature',
-                            1
-                          );
-                        }}
-                        title={isSoldOut ? (isAr ? 'نفدت الكمية' : 'Out of Stock') : 'Add to bag'}
-                      >
-                        <Plus size={15} />
-                      </button>
-                    </div>
-                    <p>{isAr ? product.categoryAr : product.category}</p>
-                    <div className="product-meta">
-                      <strong>{formatEGP(product.price, language)}</strong>
-                      <span
-                        className={`text-[11px] ${
-                          isSoldOut
-                            ? 'text-[#a34d55] font-semibold'
-                            : product.production === 'ready'
-                            ? 'text-[#567c4b]'
-                            : product.production === 'limited'
-                            ? 'text-[#806f77] font-medium'
-                            : 'text-[#c4a46d]'
-                        }`}
-                      >
-                        {isSoldOut
-                          ? isAr
-                            ? 'نفدت الكمية'
-                            : 'Out of Stock'
-                          : product.production === 'ready'
-                          ? isAr
-                            ? 'جاهز للشحن'
-                            : 'Ready to ship'
-                          : product.production === 'limited'
-                          ? isAr
-                            ? 'إصدار محدود'
-                            : 'Limited edition'
-                          : isAr
-                          ? 'يُنفّذ حسب الطلب'
-                          : 'Made to order'}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* The Craft Section */}
-      <section className="craft-section">
-        <div className="container craft-layout">
-          <div className="craft-main">
-            <span className="eyebrow" style={{ color: '#49343f' }}>
-              <span className="eyebrow-line" style={{ background: '#49343f' }} />
-              {isAr ? 'أصالة الحرفة المصرية' : 'Atelier Philosophy'}
-            </span>
-            <h2>{isAr ? 'الفن في أدق تفاصيل الغرزة' : 'Art in Every Single Stitch'}</h2>
-            <p>
-              {isAr
-                ? 'ننتقي أجود أنواع الكتان المصري الطبيعي والحرير الفاخر، وتمر كل قطعة بأيدي أمهر الحرفيات في القاهرة لصياغة تطريز يدوي متقن يستغرق عشرات الساعات من التفاني.'
-                : 'Each silhouette begins with pure unadulterated fabrics: Egyptian Giza cotton voile, artisanal washed linen, and mulberry silk. Our artisans spend dozens of hours hand-guiding silk threads.'}
-            </p>
-            <Link href="/our-story" className="solid-button">
-              {t.craftCta}
-            </Link>
-          </div>
-
-          <div className="craft-collage">
-            <div className="craft-card craft-card-large">
-              <img src="/products/golden-kaftan.svg" alt="Gold thread artisan work" />
-              <div>
-                <span>{isAr ? 'خيوط مذهبة' : 'Gilded Needlework'}</span>
-                <strong>{isAr ? 'تطريز سيوة التراثي' : 'Siwan Sunburst Geometry'}</strong>
-                <small>{isAr ? 'أكثر من ٤٠ ساعة عمل يدوي' : '40+ hours of hand embroidery'}</small>
-              </div>
-            </div>
-            <div className="craft-card craft-card-small">
-              <img src="/products/ivory-set.svg" alt="Pure linen tailoring" />
-              <div>
-                <span>{isAr ? 'خامات طبيعية' : 'Pure Fibers'}</span>
-                <strong>{isAr ? 'كتان مغسول فاخر' : 'Egyptian Washed Linen'}</strong>
-              </div>
-            </div>
-            <div className="craft-card-note bg-[#fffaf8]">
-              <Sparkles size={20} />
-              <p>
-                {isAr
-                  ? '«كل تصميم قطعة فريدة لا تتكرر، صُنعت لتبقى جيلاً بعد جيل»'
-                  : '“Crafted to transcend fleeting fashion seasons.”'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Curated Collections Rail */}
-      <section className="section">
-        <div className="container">
-          <div className="section-heading-row">
-            <div>
-              <span className="eyebrow">
-                <span className="eyebrow-line" />
-                {isAr ? 'المجموعات الحصرية' : 'The Atelier Series'}
-              </span>
-              <h2>{isAr ? 'عوالم ميرو الإبداعية' : 'Curated Collections'}</h2>
-            </div>
-          </div>
-
-          <div className="collection-rail">
-            {collections.map((col) => (
-              <Link key={col.title} href="/shop" className="collection-card">
-                <img src={col.image} alt={col.title} />
-                <div className="collection-overlay">
-                  <div>
-                    <span className="collection-count">{col.count}</span>
-                    <h3>{isAr ? col.titleAr : col.title}</h3>
-                    <p>{isAr ? col.textAr : col.text}</p>
-                  </div>
-                  <div className="circle-arrow circle-arrow-light">
-                    <ArrowRight size={17} />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Atelier Numbers & Integrity */}
-      <section className="stats-band">
-        <div className="container stats-inner">
-          <div className="stats-intro">
-            <span className="eyebrow eyebrow-light">
-              <span className="eyebrow-line" />
-              {isAr ? 'قيم الدار' : 'By The Numbers'}
-            </span>
-            <h2>{isAr ? 'دقة لا تساوم' : 'Uncompromising Poise'}</h2>
-            <p>
-              {isAr
-                ? 'نؤمن بالإنتاج الواعي والقطع المحدودة التي تحترم جهد الحرفي المصري وتمنحك التميز المستحق.'
-                : 'We produce in strictly mindful micro-batches, ensuring that ethical artisan craftsmanship is celebrated.'}
-            </p>
-          </div>
-
-          <div className="stats-grid">
-            <div>
-              <strong>100%</strong>
-              <span>{isAr ? 'خامات مصرية وطبيعية' : 'Pure Natural Fibers'}</span>
-            </div>
-            <div>
-              <strong>90+</strong>
-              <span>{isAr ? 'ساعات تطريز يدوي' : 'Max Hand-Sewn Hours'}</span>
-            </div>
-            <div>
-              <strong>30%</strong>
-              <span>{isAr ? 'عربون طلبات خاصة' : 'Custom Design Deposit'}</span>
-            </div>
-            <div>
-              <strong>27</strong>
-              <span>{isAr ? 'محافظة نغطيها بالشحن' : 'Egyptian Governorates'}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter */}
-      <section className="newsletter-section">
-        <div className="container newsletter-inner">
+      <section className="atelier-catalog" aria-labelledby="atelier-catalog-title">
+        <div className="atelier-section-heading">
           <div>
-            <span className="eyebrow">
-              <span className="eyebrow-line" />
-              {isAr ? 'النشرة الحصرية' : 'The Atelier Journal'}
-            </span>
-            <h2>{t.newsletter}</h2>
-            <p>{t.newsletterText}</p>
+            <h2 id="atelier-catalog-title">{isAr ? 'من مشغل ميرو' : 'From the Mero atelier'}</h2>
           </div>
-
-          <form
-            className="newsletter-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              alert(
-                isAr
-                  ? 'شكراً لانضمامك إلى مجتمع ميرو بوتيك الراقي.'
-                  : 'Thank you for subscribing to Mero Boutique.'
-              );
-            }}
-          >
-            <input
-              type="email"
-              required
-              placeholder={isAr ? 'أدخلي بريدك الإلكتروني' : 'Enter your email address'}
-            />
-            <button type="submit" className="solid-button">
-              {t.subscribe}
-            </button>
-            <small>
-              {isAr
-                ? 'نحترم خصوصيتك بالكامل ولا نرسل إلا ما يليق بذوقك الرفيع.'
-                : 'We honor your privacy. Unsubscribe at any time.'}
-            </small>
-          </form>
+          <Link className="text-link" href="/shop">{isAr ? 'افتحي المتجر' : 'Open the shop'} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
+        {pieces.length > 0 ? (
+          <div className="atelier-piece-list">
+            {pieces.slice(0, 3).map((product) => (
+              <article className="atelier-piece" key={product.id}>
+                <Link href={`/shop/${product.slug}`} className="atelier-piece-image">
+                  {product.image ? <img src={product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} loading="lazy" /> : <span>{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
+                </Link>
+                <div className="atelier-piece-copy">
+                  <span>{isAr ? product.categoryAr : product.category}</span>
+                  <h3><Link href={`/shop/${product.slug}`}>{isAr ? product.nameAr : product.name}</Link></h3>
+                  <strong>{formatEGP(product.price, language)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="atelier-add"
+                  disabled={(product.production === 'ready' || product.production === 'limited') && product.stock <= 0}
+                  onClick={() => addToBag(product.id, product.sizes[0] || 'Standard', product.colors[0] || 'Signature', 1)}
+                  aria-label={`${isAr ? 'إضافة' : 'Add'} ${isAr ? product.nameAr : product.name} ${isAr ? 'إلى الحقيبة' : 'to bag'}`}
+                >
+                  <Plus size={17} aria-hidden="true" />
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="atelier-empty" role="status" aria-live="polite">{loadingCatalog
+            ? isAr ? 'جارٍ تحميل الكتالوج…' : 'Loading the catalog…'
+            : catalogReadStatus === 'unavailable'
+              ? isAr ? 'تعذر تحميل القطع المنشورة الآن.' : 'Published pieces could not be loaded right now.'
+              : isAr ? 'لا توجد قطع منشورة للعرض في الوقت الحالي.' : 'No published pieces are available to display at the moment.'}</p>
+        )}
+      </section>
+
+      <section className="atelier-custom-callout">
+        <div className="atelier-custom-row">
+          <h2>{isAr ? 'لديكِ فكرة لتصميم خاص؟' : 'Have an idea for a piece of your own?'}</h2>
+          <Link href="/custom-design" className="outline-button">{isAr ? 'أرسلي طلبك' : 'Send a custom request'} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <p>{isAr ? 'طلبات التصميم الخاص تُراجع بشكل منفصل عن طلبات القطع الجاهزة.' : 'Custom design requests are reviewed separately from ready-made orders.'}</p>
       </section>
     </main>
   );
