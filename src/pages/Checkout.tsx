@@ -651,7 +651,7 @@ export default function Checkout() {
                     placeholder={isAr ? 'مثال: MERO10' : 'Code (e.g. MERO10)'}
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1 h-9 px-3 border border-[rgba(73,52,63,0.2)] bg-white text-xs uppercase"
+                    className="flex-1 min-w-0 h-9 px-3 border border-[rgba(73,52,63,0.2)] bg-white text-xs uppercase"
                   />
                   <button type="button" onClick={handleApplyCoupon} className="outline-button min-h-[36px] px-3 text-xs">{isAr ? 'تطبيق' : 'Apply'}</button>
                 </div>
