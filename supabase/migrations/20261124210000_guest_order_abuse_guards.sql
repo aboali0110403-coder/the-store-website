@@ -2,12 +2,16 @@
 -- Pricing, shipping, coupon and stock logic below are copied unchanged from the live definitions.
 -- Adds: field length caps, reference-image validation, and rolling-window request limits.
 -- payment_method needs no change: orders_payment_method_check already restricts the stored value.
--- Limits are per phone / per order number (reliable) plus per client IP (best effort: the header may be
--- absent or spoofable, an absent header is skipped, never shared as one key) plus a coarse global ceiling
--- per function so a flood cannot grow the table or the admin inbox without bound.
+-- Limits are per phone / per existing order number (reliable keys) plus per client IP (best effort: the
+-- header may be absent or spoofable; an absent header is skipped, never shared as one key). There is
+-- deliberately no global ceiling: it would let an attacker block every customer.
+-- Known tradeoffs: someone who knows a customer's phone can use up that phone's order allowance for the hour;
+-- someone who knows an order number can use up its lookup allowance for 10 minutes.
+-- Locks: guard_guest_request takes one advisory transaction lock per key, always in the order
+-- idempotency key, phone, IP inside one function, and a transaction calls only one public function.
 -- Order and custom-request guards sit after input validation: a request that fails validation raises an
 -- exception and rolls back its own log row (it also creates no order). lookup_public_order returns NULL for
--- wrong phone/unknown order instead of raising, so failed lookups ARE logged and counted.
+-- a wrong phone instead of raising, so failed lookups of an existing order ARE logged and counted.
 -- Rollback: re-apply the previous definitions of the three functions (20261124092007 and earlier
 -- migrations) and, if wanted, drop public.guard_guest_request / guest_client_ip / guest_request_log.
 
@@ -108,7 +112,6 @@ BEGIN
   -- Abuse guards (new orders only: idempotent replays returned above).
   PERFORM public.guard_guest_request('order_phone', regexp_replace(trim(p_phone), '\D', '', 'g'), 5, interval '1 hour');
   PERFORM public.guard_guest_request('order_ip', public.guest_client_ip(), 15, interval '1 hour');
-  PERFORM public.guard_guest_request('order_all', 'all', 60, interval '1 hour');
 
   IF p_governorate IS NULL OR length(trim(p_governorate)) = 0 THEN
     RAISE EXCEPTION 'A governorate is required to calculate shipping.';
@@ -252,7 +255,6 @@ BEGIN
  END IF;
  PERFORM public.guard_guest_request('design_phone', regexp_replace(trim(p_phone),'\D','','g'), 5, interval '1 day');
  PERFORM public.guard_guest_request('design_ip', public.guest_client_ip(), 15, interval '1 day');
- PERFORM public.guard_guest_request('design_all', 'all', 60, interval '1 day');
  INSERT INTO public.custom_design_requests(id,request_number,customer_name,phone,email,garment_type,preferred_fabric,preferred_colors,embroidery_style,size_details,description,reference_image_urls,target_budget_egp,needed_by,status)
  VALUES(rid,rnum,trim(p_customer_name),trim(p_phone),nullif(trim(coalesce(p_email,'')),''),trim(p_garment_type),p_preferred_fabric,p_preferred_colors,p_embroidery_style,p_size_details,trim(p_description),coalesce(p_reference_image_urls,'{}'::text[]),p_target_budget_egp,p_needed_by,'new');
  RETURN QUERY SELECT rid,rnum,'new'::text;
@@ -272,15 +274,16 @@ DECLARE
   inp text;
   ordp text;
 BEGIN
-  PERFORM public.guard_guest_request('lookup_order', upper(left(trim(coalesce(p_order_number, '')), 40)), 20, interval '10 minutes');
-  PERFORM public.guard_guest_request('lookup_ip', public.guest_client_ip(), 60, interval '10 minutes');
-  PERFORM public.guard_guest_request('lookup_all', 'all', 600, interval '10 minutes');
   SELECT * INTO o
   FROM public.orders
   WHERE upper(order_number) = upper(trim(p_order_number))
      OR upper(order_number) = 'MERO-' || upper(trim(p_order_number))
   LIMIT 1;
   IF NOT FOUND THEN RETURN NULL; END IF;
+
+  -- Throttle only lookups of an existing order (unknown numbers write nothing, so random guessing cannot grow the log).
+  PERFORM public.guard_guest_request('lookup_order', upper(o.order_number), 20, interval '10 minutes');
+  PERFORM public.guard_guest_request('lookup_ip', public.guest_client_ip(), 100, interval '10 minutes');
 
   IF public.is_admin() THEN authorized := true; END IF;
   IF NOT authorized AND p_tracking_token IS NOT NULL AND trim(p_tracking_token) <> ''
