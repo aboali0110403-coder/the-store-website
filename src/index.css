@@ -1744,3 +1744,36 @@ body.rtl .guide-grid,
 .admin-skeleton-line.short { width: 58%; }
 @keyframes admin-pulse { to { opacity: .48; } }
 @media (prefers-reduced-motion: reduce) { .admin-skeleton-line { animation: none; } }
+
+/* Admin mobile-first practicality pass (owner direction Nov 24) */
+/* Dedupe: single tab system - vertical sidebar on desktop, scroll row on mobile */
+@media (min-width: 851px) {
+  .admin-workbench { grid-template-columns: 218px minmax(0,1fr); }
+  nav.mero-tabs { position: sticky; top: 104px; display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; margin: 0; padding: 8px; border: 1px solid var(--line); background: #eee8dc; }
+  nav.mero-tabs button { justify-content: flex-start; min-height: 44px; padding: 10px 12px; border: 1px solid transparent; background: transparent; color: #493b43; }
+  nav.mero-tabs button.active { border-color: var(--burgundy); background: var(--burgundy); color: #fffdf9; }
+  nav.mero-tabs .mero-refresh { margin: 10px 0 0; border-top: 1px solid var(--line); border-radius: 0; }
+}
+@media (max-width: 850px) {
+  /* Thumb-reachable controls, no pinch-zoom */
+  .admin-shell .mero-field { font-size: 0.92rem; }
+  .admin-shell .mero-field input, .admin-shell .mero-field select, .admin-shell .mero-field textarea { min-height: 46px; font-size: 1rem; }
+  .admin-shell .mero-record select, .admin-shell .mero-record input { min-height: 44px; font-size: 0.95rem; width: 100%; }
+  .admin-shell .mero-record { flex-direction: column; align-items: stretch; }
+  .admin-shell .mero-record > div { width: 100%; }
+  .admin-shell .mero-record .flex.items-center.gap-2 { flex-direction: column; align-items: stretch; width: 100%; }
+  .admin-shell .mero-record .flex.items-center.gap-2 input, .admin-shell .mero-record .flex.items-center.gap-2 select { width: 100%; }
+  /* Orders filter/search: full-width stacked */
+  .admin-shell .mero-records input[type="text"], .admin-shell .mero-records select { width: 100% !important; min-height: 46px; font-size: 1rem; }
+  .admin-shell .mero-records .flex.flex-wrap { flex-direction: column; align-items: stretch; }
+  /* Section headings sized for phones */
+  .admin-shell .mero-editor h2, .admin-shell .mero-records h2 { font-size: 1.45rem; line-height: 1.25; }
+  .admin-content-heading h2 { font-size: 1.6rem; }
+  /* Tabs: bigger touch targets */
+  nav.mero-tabs button { min-height: 46px; font-size: 0.9rem; padding: 10px 16px; }
+  /* Overview rows become 2-col KPI cards */
+  .admin-overview-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .admin-overview-row { flex-direction: column; align-items: flex-start; gap: 6px; min-height: 84px; padding: 14px; border: 1px solid var(--line); background: var(--white); }
+  .admin-overview-row strong { font-size: 1.5rem; color: var(--burgundy); }
+  .admin-overview-row svg { display: none; }
+}
