@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
 import { submitCustomDesignRequest, uploadDesignReferenceImage, deleteStorageFile } from '../lib/api';
+import { friendlyServerMessage } from '../lib/commerceLogic';
 import { formatEGP } from '../lib/commerceLogic';
 import { CaptchaChallenge } from '../components/CaptchaChallenge';
 
@@ -229,7 +230,7 @@ export default function CustomDesign() {
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : isAr ? 'تعذر إرسال طلب التصميم.' : 'Could not submit request.'
+        err instanceof Error ? friendlyServerMessage(err.message, isAr) : isAr ? 'تعذر إرسال طلب التصميم.' : 'Could not submit request.'
       );
     } finally {
       setSaving(false);
@@ -564,6 +565,7 @@ export default function CustomDesign() {
 
           {/* Bespoke Guidance Aside */}
           <aside className="custom-design-aside">
+            <img src="/mero-dress.svg" alt="" aria-hidden="true" className="custom-design-dress-img" />
             <span className="eyebrow" style={{ color: '#49343f' }}>
               <Scissors size={14} />
               {isAr ? 'خطوات التنفيذ' : 'The Bespoke Process'}

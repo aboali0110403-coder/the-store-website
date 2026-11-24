@@ -69,7 +69,7 @@ export const CaptchaChallenge: React.FC<CaptchaChallengeProps> = ({ onVerify, la
         <button
           type="button"
           onClick={generateChallenge}
-          className="text-[#947381] hover:text-[#49343f] flex items-center gap-1 text-[10px] uppercase tracking-wider transition-colors"
+          className="text-[#947381] hover:text-[#49343f] flex items-center gap-1 min-h-[44px] min-w-[44px] -my-3 text-[10px] uppercase tracking-wider transition-colors"
           title={isAr ? 'تحديث السؤال' : 'Refresh question'}
         >
           <RefreshCw size={12} />

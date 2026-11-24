@@ -17,11 +17,20 @@ export default function Home() {
         nameAr: product.categoryAr,
         id: `live-${product.category}`,
         is_published: true,
+        image: '',
       }])).values());
 
   return (
     <main className="atelier-home">
       <section className="atelier-opening">
+        {featured && featured.image && (
+          <img
+            className="atelier-opening-image"
+            src={featured.image}
+            alt={featured.alt || (isAr ? featured.nameAr : featured.name)}
+          />
+        )}
+        <div className="atelier-opening-scrim" aria-hidden="true" />
         <div className="atelier-opening-copy">
           <h1>{isAr ? 'قطعة تُصنع بيد واحدة، غرزةً بعد غرزة.' : 'One maker. Each piece, stitch by stitch.'}</h1>
           <p className="atelier-origin atelier-location">{isAr ? 'ميرو بوتيك · المنصورة، مصر' : 'Mero Boutique · Mansoura, Egypt'}</p>
@@ -34,7 +43,7 @@ export default function Home() {
             <Link href="/shop" className="solid-button">
               {isAr ? 'تصفحي الكتالوج' : 'Browse the live catalog'} <ArrowRight size={16} aria-hidden="true" />
             </Link>
-            <Link href="/custom-design" className="outline-button">
+            <Link href="/custom-design" className="outline-button atelier-ghost-on-image">
               {isAr ? 'ابدئي طلب تصميم خاص' : 'Start a custom request'}
             </Link>
           </div>
@@ -45,28 +54,21 @@ export default function Home() {
 
         <div className="atelier-feature" aria-live="polite">
           {featured ? (
-            <>
-              <Link href={`/shop/${featured.slug}`} className="atelier-feature-image" aria-label={`${isAr ? featured.nameAr : featured.name} — ${isAr ? 'عرض التفاصيل' : 'view piece'}`}>
-                {featured.image ? <img src={featured.image} alt={featured.alt || (isAr ? featured.nameAr : featured.name)} /> : (
-                  <span className="atelier-image-unavailable">{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>
-                )}
+            <div className="atelier-feature-chip">
+              <Link href={`/shop/${featured.slug}`} className="atelier-feature-chip-text" aria-label={`${isAr ? featured.nameAr : featured.name} — ${isAr ? 'عرض التفاصيل' : 'view piece'}`}>
+                <span>{isAr ? 'من الكتالوج المنشور' : 'From the published catalog'}</span>
+                <strong>{isAr ? featured.nameAr : featured.name}</strong>
+                <em>{formatEGP(featured.price, language)} <span aria-hidden="true">·</span> {isAr ? featured.categoryAr : featured.category}</em>
               </Link>
-              <div className="atelier-feature-caption">
-                <div>
-                  <span>{isAr ? 'من الكتالوج المنشور' : 'From the published catalog'}</span>
-                  <h2><Link href={`/shop/${featured.slug}`}>{isAr ? featured.nameAr : featured.name}</Link></h2>
-                  <p>{formatEGP(featured.price, language)} <span aria-hidden="true">·</span> {isAr ? featured.categoryAr : featured.category}</p>
-                </div>
-                <button
-                  type="button"
-                  className={`atelier-save ${isWishlisted(featured.id) ? 'is-saved' : ''}`}
-                  onClick={() => toggleWishlist(featured.id)}
-                  aria-label={isWishlisted(featured.id) ? (isAr ? 'إزالة من المفضلة' : 'Remove from wishlist') : (isAr ? 'إضافة إلى المفضلة' : 'Add to wishlist')}
-                >
-                  <Heart size={18} fill={isWishlisted(featured.id) ? 'currentColor' : 'none'} aria-hidden="true" />
-                </button>
-              </div>
-            </>
+              <button
+                type="button"
+                className={`atelier-save ${isWishlisted(featured.id) ? 'is-saved' : ''}`}
+                onClick={() => toggleWishlist(featured.id)}
+                aria-label={isWishlisted(featured.id) ? (isAr ? 'إزالة من المفضلة' : 'Remove from wishlist') : (isAr ? 'إضافة إلى المفضلة' : 'Add to wishlist')}
+              >
+                <Heart size={18} fill={isWishlisted(featured.id) ? 'currentColor' : 'none'} aria-hidden="true" />
+              </button>
+            </div>
           ) : (
             <div className="atelier-feature-empty">
               <span>{loadingCatalog ? (isAr ? 'جارٍ تحديث الكتالوج' : 'Refreshing the catalog') : (isAr ? 'الكتالوج المنشور' : 'Published catalog')}</span>
@@ -88,11 +90,17 @@ export default function Home() {
             </div>
             <Link className="text-link" href="/shop">{isAr ? 'كل القطع' : 'All pieces'} <ArrowRight size={15} aria-hidden="true" /></Link>
           </div>
-          <nav className="atelier-category-links" aria-label={isAr ? 'تصنيفات الكتالوج' : 'Catalog categories'}>
+          <nav className="atelier-category-cards" aria-label={isAr ? 'تصنيفات الكتالوج' : 'Catalog categories'}>
             {liveCategories.map((category) => (
-              <Link key={category.id || category.filter} href={`/shop?category=${encodeURIComponent(category.filter)}`}>
-                <span>{isAr ? category.nameAr : category.name}</span>
-                <ArrowRight size={15} aria-hidden="true" />
+              <Link key={category.id || category.filter} href={`/shop?category=${encodeURIComponent(category.filter)}`} className="atelier-category-card">
+                {category.image ? (
+                  <img src={category.image} alt="" loading="lazy" />
+                ) : null}
+                <span className="atelier-category-card-scrim" aria-hidden="true" />
+                <span className="atelier-category-card-label">
+                  <span>{isAr ? category.nameAr : category.name}</span>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </span>
               </Link>
             ))}
           </nav>
@@ -100,7 +108,7 @@ export default function Home() {
       )}
 
       <section className="atelier-catalog" aria-labelledby="atelier-catalog-title">
-        <div className="atelier-section-heading">
+        <div className="atelier-section-heading atelier-section-heading-center">
           <div>
             <h2 id="atelier-catalog-title">{isAr ? 'من مشغل ميرو' : 'From the Mero atelier'}</h2>
           </div>
@@ -113,6 +121,14 @@ export default function Home() {
                 <Link href={`/shop/${product.slug}`} className="atelier-piece-image">
                   {product.image ? <img src={product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} loading="lazy" /> : <span>{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
                 </Link>
+                <button
+                  type="button"
+                  className={`atelier-piece-save ${isWishlisted(product.id) ? 'is-saved' : ''}`}
+                  onClick={() => toggleWishlist(product.id)}
+                  aria-label={isWishlisted(product.id) ? (isAr ? 'إزالة من المفضلة' : 'Remove from wishlist') : (isAr ? 'إضافة إلى المفضلة' : 'Add to wishlist')}
+                >
+                  <Heart size={16} fill={isWishlisted(product.id) ? 'currentColor' : 'none'} aria-hidden="true" />
+                </button>
                 <div className="atelier-piece-copy">
                   <span>{isAr ? product.categoryAr : product.category}</span>
                   <h3><Link href={`/shop/${product.slug}`}>{isAr ? product.nameAr : product.name}</Link></h3>
@@ -140,11 +156,11 @@ export default function Home() {
       </section>
 
       <section className="atelier-custom-callout">
-        <div className="atelier-custom-row">
+        <div className="atelier-custom-inner">
           <h2>{isAr ? 'لديكِ فكرة لتصميم خاص؟' : 'Have an idea for a piece of your own?'}</h2>
-          <Link href="/custom-design" className="outline-button">{isAr ? 'أرسلي طلبك' : 'Send a custom request'} <ArrowRight size={16} aria-hidden="true" /></Link>
+          <Link href="/custom-design" className="outline-button atelier-ghost-on-olive">{isAr ? 'أرسلي طلبك' : 'Send a custom request'} <ArrowRight size={16} aria-hidden="true" /></Link>
+          <p>{isAr ? 'طلبات التصميم الخاص تُراجع بشكل منفصل عن طلبات القطع الجاهزة.' : 'Custom design requests are reviewed separately from ready-made orders.'}</p>
         </div>
-        <p>{isAr ? 'طلبات التصميم الخاص تُراجع بشكل منفصل عن طلبات القطع الجاهزة.' : 'Custom design requests are reviewed separately from ready-made orders.'}</p>
       </section>
     </main>
   );

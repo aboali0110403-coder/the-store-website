@@ -541,7 +541,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 : 'An independent Mansoura embroidery and tailoring atelier, run by its maker.'}
             </p>
             <div className="social-links">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">
+              <a href="https://www.instagram.com/mariam.designer_?evlk=aW4xcHYwZW1pOHBh" target="_blank" rel="noreferrer" aria-label="Instagram">
                 <Instagram size={17} />
               </a>
               <a href="mailto:concierge@meroboutique.com" aria-label="Email Concierge">

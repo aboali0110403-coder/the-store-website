@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, FormEvent } from 'react';
+import React, { useCallback, useEffect, useRef, useState, FormEvent } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -51,6 +51,8 @@ import {
   getSignedDesignReferenceUrl,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
+import { createLatestGate, resolveAdminAccess } from '../lib/adminAccess';
+import { shippingRateSummary } from '../lib/adminLabels';
 import { CategoryItem, ShippingRate } from '../lib/store';
 
 type Tab =
@@ -71,6 +73,32 @@ const getAdminResourceLabel = (key: string, isAr: boolean) => {
   return labels[key] || key;
 };
 
+const ORDER_STATUSES = ['pending', 'confirmed', 'in_production', 'ready_to_ship', 'shipped', 'delivered', 'cancelled'] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#b45309', confirmed: '#1d4ed8', in_production: '#7c3aed',
+  ready_to_ship: '#0f766e', shipped: '#4d7c0f', delivered: '#15803d', cancelled: '#b91c1c',
+};
+
+const REQUEST_COLORS: Record<string, string> = {
+  new: '#b45309', contacted: '#1d4ed8', quoted: '#7c3aed', deposit_paid: '#0f766e',
+  in_progress: '#4d7c0f', completed: '#15803d', cancelled: '#b91c1c',
+};
+const ORDER_STATUS_LABELS_EN: Record<string, string> = {
+  pending: 'Pending', confirmed: 'Confirmed', in_production: 'In Production',
+  ready_to_ship: 'Ready to Ship', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+};
+const ORDER_STATUS_LABELS_AR: Record<string, string> = {
+  pending: 'قيد الانتظار', confirmed: 'مؤكد', in_production: 'قيد التنفيذ',
+  ready_to_ship: 'جاهز للشحن', shipped: 'تم الشحن', delivered: 'تم التسليم', cancelled: 'ملغي',
+};
+const orderStatusLabel = (status: string, isAr: boolean) =>
+  (isAr ? ORDER_STATUS_LABELS_AR[status] : ORDER_STATUS_LABELS_EN[status]) || status;
+const phoneHref = (phone: string) => `tel:${(phone || '').replace(/[^+\d]/g, '')}`;
+const whatsappHref = (phone: string) => `https://wa.me/${(phone || '').replace(/\D/g, '')}`;
+const slugifyName = (name: string) =>
+  name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
 export default function Admin() {
   const { language, refreshCatalog, refreshCategories } = useBoutique();
   const isAr = language === 'ar';
@@ -80,10 +108,20 @@ export default function Admin() {
   const [password, setPassword] = useState('');
   const [session, setSession] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  // True while the admin allowlist check is in flight, so a signed-in user is not shown "Unauthorized" before the check finishes.
+  const [verifying, setVerifying] = useState(false);
+  const [verifyFailed, setVerifyFailed] = useState(false);
+  const verifyGate = useRef(createLatestGate());
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [readStates, setReadStates] = useState<Record<string, 'loading' | 'loaded' | 'failed'>>({});
+
+  // Lets CSS slim the storefront chrome on the admin route (mobile)
+  useEffect(() => {
+    document.body.classList.add('admin-route');
+    return () => document.body.classList.remove('admin-route');
+  }, []);
   const [readFailures, setReadFailures] = useState<string[]>([]);
 
   // Data states
@@ -165,6 +203,8 @@ export default function Admin() {
   });
 
   const [orderStatusNotes, setOrderStatusNotes] = useState<Record<string, string>>({});
+  const [pendingOrderStatus, setPendingOrderStatus] = useState<Record<string, string>>({});
+  const [slugTouched, setSlugTouched] = useState(false);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
@@ -227,35 +267,47 @@ export default function Admin() {
     }
   };
 
-  // Verify authentication and admin authorization
+  // Verify authentication and admin authorization.
+  // Fails closed: access is granted only when the allowlist query succeeds and returns a row.
+  // A query error is reported as a retryable verification failure, not as "not in the allowlist".
+  // Only the latest call may change state, so an older, slower call cannot overwrite a newer result.
   const verifyAccess = useCallback(async (userSession: any) => {
+    const isLatest = verifyGate.current.start();
+
     if (!userSession?.user) {
+      setVerifying(false);
       setIsAuthorized(false);
       return;
     }
 
-    try {
-      // Query admin_users allowlist
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('user_id')
-        .eq('user_id', userSession.user.id);
+    setVerifying(true);
+    setVerifyFailed(false);
+    const result = await resolveAdminAccess(async () => {
+      const res = await supabase.from('admin_users').select('user_id').eq('user_id', userSession.user.id);
+      return { data: res.data, error: res.error };
+    });
+    if (!isLatest()) return;
 
-      if (error || !data || data.length === 0) {
-        setIsAuthorized(false);
-        setAuthError(
-          isAr
-            ? 'هذا الحساب غير مصرح له كمسؤول. يجب إضافة معرف المستخدم (UUID) إلى جدول admin_users.'
-            : 'Access Denied: Account is not in the store admin allowlist (public.admin_users).'
-        );
-      } else {
-        setIsAuthorized(true);
-        setAuthError('');
-      }
-    } catch {
+    if (result === 'granted') {
+      setIsAuthorized(true);
+      setAuthError('');
+    } else if (result === 'denied') {
       setIsAuthorized(false);
-      setAuthError('Authorization check failed.');
+      setAuthError(
+        isAr
+          ? 'هذا الحساب غير مصرح له كمسؤول. يرجى التواصل مع مالك المتجر لإضافة حسابك.'
+          : 'Access Denied: Account is not in the store admin allowlist.'
+      );
+    } else {
+      setVerifyFailed(true);
+      setIsAuthorized(false);
+      setAuthError(
+        isAr
+          ? 'تعذّر التحقق من صلاحيات الحساب الآن. حاولي مرة أخرى بعد لحظات.'
+          : 'Could not verify admin access right now. Please try again in a moment.'
+      );
     }
+    setVerifying(false);
   }, [isAr]);
 
   useEffect(() => {
@@ -269,7 +321,11 @@ export default function Admin() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) verifyAccess(session);
-      else setIsAuthorized(false);
+      else {
+        verifyGate.current.invalidate();
+        setVerifying(false);
+        setIsAuthorized(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -571,7 +627,12 @@ export default function Admin() {
     const notes = orderStatusNotes[orderId] || '';
     try {
       await adminUpdateOrderStatus(orderId, status, notes);
-      setStatusMessage(`Order status updated to ${status}.`);
+      setPendingOrderStatus((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+      setStatusMessage(isAr ? `تم تحديث حالة الطلب إلى «${orderStatusLabel(status, true)}».` : `Order status updated to ${orderStatusLabel(status, false)}.`);
       await loadDashboardData();
     } catch (err: any) {
       setErrorMessage(err?.message || 'Could not update order status.');
@@ -670,7 +731,10 @@ export default function Admin() {
   const activeDataKey = activeTab === 'overview' ? null : activeTab === 'gallery' || activeTab === 'variants' ? 'products' : activeTab;
   const activeReadState = activeDataKey ? readStates[activeDataKey] : undefined;
 
-  // UNAUTHORIZED STATE
+  // GATE STATE (sign-in, verifying, verification error, or denied)
+  const gateVerifying = Boolean(session) && verifying && !isAuthorized;
+  const gateDenied = Boolean(session) && !isAuthorized && !verifying && !verifyFailed;
+  const gateError = Boolean(session) && !isAuthorized && !verifying && verifyFailed;
   if (!session || !isAuthorized) {
     return (
       <main className="admin-page">
@@ -691,7 +755,7 @@ export default function Admin() {
 
           <div className="admin-gate">
             <div className="admin-gate-icon">
-              {session && !isAuthorized ? (
+              {gateDenied || gateError ? (
                 <ShieldAlert size={28} className="text-[#a34d55]" />
               ) : (
                 <ShieldCheck size={28} />
@@ -699,7 +763,15 @@ export default function Admin() {
             </div>
 
             <h2>
-              {session && !isAuthorized
+              {gateVerifying
+                ? isAr
+                  ? 'جارٍ التحقق من الصلاحيات'
+                  : 'Verifying access'
+                : gateError
+                ? isAr
+                  ? 'تعذّر التحقق'
+                  : 'Could not verify access'
+                : gateDenied
                 ? isAr
                   ? 'حساب غير مصرح له'
                   : 'Unauthorized Access'
@@ -709,10 +781,18 @@ export default function Admin() {
             </h2>
 
             <p>
-              {session && !isAuthorized
+              {gateVerifying
                 ? isAr
-                  ? 'أنت مسجل الدخول، لكن حسابك غير موجود في قائمة مسؤولي المتجر (public.admin_users). تم تقييد كافة الصلاحيات الإدارية وفق سياسات RLS.'
-                  : 'Your account is authenticated, but not in the store admin allowlist (public.admin_users). Administrative privileges are strictly enforced by RLS.'
+                  ? 'لحظات من فضلك، نتحقق من صلاحيات حسابك.'
+                  : 'One moment while we check your account.'
+                : gateError
+                ? isAr
+                  ? 'أنت مسجل الدخول، لكن تعذّر التحقق من الصلاحيات الآن. سجّلي الخروج وحاولي مرة أخرى.'
+                  : 'You are signed in, but access could not be verified right now. Sign out and try again.'
+                : gateDenied
+                ? isAr
+                  ? 'أنت مسجل الدخول، لكن حسابك غير موجود في قائمة مسؤولي المتجر. تم تقييد كافة الصلاحيات الإدارية وفق سياسات RLS.'
+                  : 'Your account is authenticated, but not in the store admin allowlist. Administrative privileges are strictly enforced by RLS.'
                 : isAr
                 ? 'سجلي الدخول بحساب المشرف المسجل في Supabase Auth لإدارة المنتجات والطلبات والكوبونات والشحن.'
                 : 'Sign in with your verified Supabase owner credentials to manage catalog, gallery, stock, orders, and coupons.'}
@@ -770,7 +850,7 @@ export default function Admin() {
           <div className="flex items-center gap-3">
             <img src="/mero-logo.png" alt="Mero Boutique" className="admin-logo-img" />
             <div>
-              <span className="eyebrow">MERO / OWNER WORKBENCH</span>
+              <span className="eyebrow">{isAr ? 'ميرو / لوحة المالك' : 'MERO / OWNER WORKBENCH'}</span>
               <h1>{isAr ? 'مساحة عمل المشغل' : 'Atelier Workbench'}</h1>
             </div>
           </div>
@@ -787,6 +867,34 @@ export default function Admin() {
         </div>
 
         <div className="admin-workbench">
+        {/* Mobile section picker (shown <=850px; the tab row/sidebar stays for larger screens) */}
+        <div className="mero-tab-select-row">
+          <select
+            className="mero-tab-select"
+            value={activeTab}
+            aria-label={isAr ? 'أقسام الإدارة' : 'Admin sections'}
+            onChange={(event) => setActiveTab(event.target.value as Tab)}
+          >
+            <option value="overview">{isAr ? 'نظرة عامة' : 'Overview'}</option>
+            <option value="products">{isAr ? 'المنتجات' : 'Products'} ({readStates.products === 'loaded' ? products.length : '—'})</option>
+            <option value="categories">{isAr ? 'التصنيفات' : 'Categories'} ({readStates.categories === 'loaded' ? adminCategories.length : '—'})</option>
+            <option value="gallery">{isAr ? 'معرض الصور' : 'Product Gallery'}</option>
+            <option value="variants">{isAr ? 'المقاسات والمخزون' : 'Variants & Stock'}</option>
+            <option value="shipping">{isAr ? 'الشحن' : 'Shipping'} ({readStates.shipping === 'loaded' ? shippingRates.length : '—'})</option>
+            <option value="coupons">{isAr ? 'الكوبونات' : 'Coupons'} ({readStates.coupons === 'loaded' ? coupons.length : '—'})</option>
+            <option value="orders">{isAr ? 'الطلبات' : 'Orders'} ({readStates.orders === 'loaded' ? orders.length : '—'})</option>
+            <option value="custom_requests">{isAr ? 'طلبات التصميم' : 'Custom requests'} ({readStates.custom_requests === 'loaded' ? customRequests.length : '—'})</option>
+          </select>
+          <button
+            type="button"
+            className="mero-refresh mero-refresh-mobile"
+            onClick={loadDashboardData}
+            title={isAr ? 'تحديث من المتجر' : 'Refresh operational records'}
+          >
+            <RefreshCw size={14} />
+            {isAr ? 'تحديث' : 'Refresh'}
+          </button>
+        </div>
         {/* Operational navigation */}
         <nav className="mero-tabs" aria-label={isAr ? 'أقسام الإدارة' : 'Admin sections'}>
           <button type="button" className={activeTab === 'overview' ? 'active' : ''} aria-current={activeTab === 'overview' ? 'page' : undefined} onClick={() => setActiveTab('overview')}>
@@ -897,25 +1005,181 @@ export default function Admin() {
               <button type="button" className="mero-text-button" onClick={loadDashboardData} disabled={loading}><RefreshCw size={15} /> {isAr ? 'تحديث السجلات' : 'Refresh records'}</button>
             </div>
             <p className="admin-overview-note">{isAr ? 'الأعداد أدناه محسوبة من السجلات التي نجح تحميلها في هذه الجلسة فقط.' : 'Counts below are calculated only from records successfully loaded in this session.'}</p>
-            <div className="admin-overview-list">
-              {([
-                ['products', isAr ? 'المنتجات' : 'Products', products.length],
-                ['orders', isAr ? 'الطلبات' : 'Orders', orders.length],
-                ['custom_requests', isAr ? 'طلبات التصميم الخاص' : 'Custom design requests', customRequests.length],
-                ['shipping', isAr ? 'أسعار الشحن' : 'Shipping rates', shippingRates.length],
-                ['coupons', isAr ? 'الكوبونات' : 'Coupons', coupons.length],
-                ['categories', isAr ? 'التصنيفات' : 'Categories', adminCategories.length],
-              ] as const).map(([key, label, count]) => (
-                <button key={key} type="button" className="admin-overview-row" onClick={() => setActiveTab(key as Tab)}>
-                  <span>{label}</span>
-                  <strong>{readStates[key] === 'loaded' ? count : readStates[key] === 'loading' ? (isAr ? 'جارٍ التحميل' : 'Loading') : (isAr ? 'غير متاح' : 'Unavailable')}</strong>
-                  <ArrowRight size={16} aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-            {readStates.orders === 'loaded' && orders.filter((order) => order.status === 'pending').length > 0 && (
-              <p className="admin-pending-note">{isAr ? `هناك ${orders.filter((order) => order.status === 'pending').length} طلبات بحالة قيد الانتظار.` : `${orders.filter((order) => order.status === 'pending').length} orders are pending.`}</p>
-            )}
+            {(() => {
+              const readValue = (key: string, count: number) =>
+                readStates[key] === 'loaded' ? String(count) : readStates[key] === 'loading' ? '…' : (isAr ? 'غير متاح' : 'Unavailable');
+              const ordersLoaded = readStates.orders === 'loaded';
+              const productsLoaded = readStates.products === 'loaded';
+              const nonCancelled = orders.filter((o) => o.status !== 'cancelled');
+              const revenue = nonCancelled.reduce((sum, o) => sum + (o.total_egp ?? o.subtotal_egp ?? 0), 0);
+              const pendingCount = orders.filter((o) => o.status === 'pending').length;
+              const statusCounts = ORDER_STATUSES.map((s) => ({ status: s, count: orders.filter((o) => o.status === s).length }));
+              const totalOrders = orders.length;
+              let acc = 0;
+              const donutSegs = statusCounts.filter((s) => s.count > 0).map((s) => {
+                const start = acc / Math.max(1, totalOrders);
+                acc += s.count;
+                return { ...s, start, frac: s.count / Math.max(1, totalOrders) };
+              });
+              const byDay: Record<string, number> = {};
+              nonCancelled.forEach((o) => {
+                const d = (o.created_at || '').slice(0, 10);
+                if (d) byDay[d] = (byDay[d] || 0) + (o.total_egp ?? o.subtotal_egp ?? 0);
+              });
+              const days = Object.keys(byDay).sort();
+              const vals = days.map((d) => byDay[d]);
+              const maxV = Math.max(1, ...vals);
+              const pts = days.map((d, i) => [days.length === 1 ? 50 : (i / (days.length - 1)) * 100, 42 - (vals[i] / maxV) * 34]);
+              const linePts = pts.map((p) => p.join(',')).join(' ');
+              const areaPts = `0,46 ${linePts} 100,46`;
+              const sales: Record<string, number> = {};
+              orders.forEach((o) => (((o as any).items || (o as any).order_items || []) as any[]).forEach((it) => {
+                const n = (isAr ? (it.product_name_ar || it.product_name_en) : (it.product_name_en || it.product_name_ar)) || '—';
+                sales[n] = (sales[n] || 0) + (it.unit_price_egp || 0) * (it.quantity || 1);
+              }));
+              const topPieces = Object.entries(sales).sort((a, b) => b[1] - a[1]).slice(0, 5);
+              const maxSale = Math.max(1, ...topPieces.map((t) => t[1]));
+              const recentOrders = [...orders].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 6);
+              const kpis = [
+                { key: 'orders', icon: <ShoppingBag size={18} />, label: isAr ? 'إجمالي الطلبات' : 'Total Orders', value: readValue('orders', orders.length), sub: isAr ? 'كل الطلبات المحملة' : 'all loaded orders' },
+                { key: 'orders', icon: <Clock size={18} />, label: isAr ? 'طلبات قيد الانتظار' : 'Pending Orders', value: readValue('orders', pendingCount), sub: isAr ? 'بانتظار التأكيد' : 'awaiting confirmation' },
+                { key: 'orders', icon: <DollarSign size={18} />, label: isAr ? 'قيمة الطلبات' : 'Order Value', value: ordersLoaded ? formatEGP(revenue, language) : readValue('orders', 0), sub: isAr ? 'باستثناء الملغي' : 'excl. cancelled' },
+                { key: 'custom_requests', icon: <Scissors size={18} />, label: isAr ? 'طلبات التصميم' : 'Custom Requests', value: readValue('custom_requests', customRequests.length), sub: isAr ? 'الوارد حتى الآن' : 'received to date' },
+              ];
+              return (
+                <>
+                  <div className="admin-kpi-grid">
+                    {kpis.map((kpi, i) => (
+                      <button key={i} type="button" className="admin-kpi-card" onClick={() => setActiveTab(kpi.key as Tab)}>
+                        <span className="admin-kpi-top"><span className="admin-kpi-icon" aria-hidden="true">{kpi.icon}</span><span className="admin-kpi-label">{kpi.label}</span></span>
+                        <strong className="admin-kpi-value">{kpi.value}</strong>
+                        <span className="admin-kpi-sub">{kpi.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="admin-mini-strip">
+                    {([
+                      ['products', isAr ? 'المنتجات' : 'Products', products.length],
+                      ['shipping', isAr ? 'أسعار الشحن' : 'Shipping rates', shippingRates.length],
+                      ['coupons', isAr ? 'الكوبونات' : 'Coupons', coupons.length],
+                      ['categories', isAr ? 'التصنيفات' : 'Categories', adminCategories.length],
+                    ] as const).map(([key, label, count]) => (
+                      <button key={key} type="button" className="admin-mini-card" onClick={() => setActiveTab(key as Tab)}>
+                        <span>{label}</span>
+                        <strong>{readValue(key, count)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="admin-dash-panels">
+                    <div className="admin-dash-panel">
+                      <h3>{isAr ? 'قيمة الطلبات' : 'Order Value'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : days.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. سيظهر منحنى القيمة هنا فور وصول أول طلب.' : 'No orders yet. The value curve appears here as soon as the first order arrives.'}</p>
+                      ) : (
+                        <>
+                          <svg viewBox="0 0 100 46" className="admin-rev-chart" preserveAspectRatio="none" role="img" aria-label={isAr ? 'منحنى قيمة الطلبات بالأيام' : 'Order value by day'}>
+                            <polygon points={areaPts} className="admin-rev-area" />
+                            <polyline points={linePts} className="admin-rev-line" vectorEffect="non-scaling-stroke" />
+                          </svg>
+                          <p className="admin-chart-note">{days[0]} → {days[days.length - 1]} · {formatEGP(revenue, language)}</p>
+                        </>
+                      )}
+                      <h3 className="admin-dash-subhead">{isAr ? 'القطع الأعلى مبيعًا' : 'Top Pieces'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : topPieces.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا مبيعات مسجلة بعد.' : 'No sales recorded yet.'}</p>
+                      ) : (
+                        topPieces.map(([name, val]) => (
+                          <div key={name} className="admin-status-row">
+                            <span className="admin-status-name admin-piece-name">{name}</span>
+                            <span className="admin-status-bar-wrap"><span className="admin-status-bar" style={{ width: `${Math.max(6, (val / maxSale) * 100)}%` }} /></span>
+                            <strong className="admin-status-count">{formatEGP(val, language)}</strong>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="admin-dash-panel">
+                      <h3>{isAr ? 'حالات الطلبات' : 'Order Statistics'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : totalOrders === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. ستظهر الحالات هنا فور وصول أول طلب.' : 'No orders yet. Status counts appear here as soon as the first order arrives.'}</p>
+                      ) : (
+                        <div className="admin-donut-wrap">
+                          <svg viewBox="0 0 42 42" className="admin-donut" role="img" aria-label={isAr ? 'توزيع الطلبات على الحالات' : 'Orders by status'}>
+                            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="#eee5d8" strokeWidth="6" />
+                            {donutSegs.map((s) => (
+                              <circle key={s.status} cx="21" cy="21" r="15.9155" fill="none" stroke={STATUS_COLORS[s.status]} strokeWidth="6" strokeDasharray={`${(s.frac * 100).toFixed(2)} ${(100 - s.frac * 100).toFixed(2)}`} strokeDashoffset={(25 - s.start * 100).toFixed(2)} />
+                            ))}
+                            <text x="21" y="20.5" textAnchor="middle" className="admin-donut-total">{totalOrders}</text>
+                            <text x="21" y="26.5" textAnchor="middle" className="admin-donut-label">{isAr ? 'طلب' : 'orders'}</text>
+                          </svg>
+                          <div className="admin-donut-legend">
+                            {statusCounts.map((s) => (
+                              <div key={s.status} className="admin-legend-row">
+                                <span className="admin-legend-dot" style={{ background: STATUS_COLORS[s.status] }} />
+                                <span className="admin-legend-name">{orderStatusLabel(s.status, isAr)}</span>
+                                <strong>{s.count}</strong>
+                                <span className="admin-legend-pct">{totalOrders ? Math.round((s.count / totalOrders) * 100) : 0}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <h3 className="admin-dash-subhead">{isAr ? 'حالة المخزون' : 'Inventory Status'}</h3>
+                      {!productsLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات المنتجات غير متاحة.' : 'Product data unavailable.'}</p>
+                      ) : products.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد منتجات بعد.' : 'No products yet.'}</p>
+                      ) : (
+                        products.map((p: any) => {
+                          const stock = Number(p.stock) || 0;
+                          const mto = p.production_type === 'made_to_order';
+                          const pill = mto
+                            ? { cls: 'mto', label: isAr ? 'يُصنع عند الطلب' : 'Made to order' }
+                            : stock === 0
+                              ? { cls: 'out', label: isAr ? 'نفد المخزون' : 'Out of Stock' }
+                              : stock <= 2
+                                ? { cls: 'low', label: isAr ? 'مخزون منخفض' : 'Low Stock' }
+                                : { cls: 'in', label: isAr ? 'متوفر' : 'In Stock' };
+                          return (
+                            <button key={p.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('products')}>
+                              <span className="admin-recent-customer">{isAr ? p.name_ar : p.name_en}</span>
+                              {!mto && <span className="admin-recent-total">{stock}</span>}
+                              <span className={`admin-pill pill-${pill.cls}`}>{pill.label}</span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div className="admin-dash-panel admin-panel-full">
+                    <h3>{isAr ? 'أحدث الطلبات' : 'Recent Orders'}</h3>
+                    {!ordersLoaded ? (
+                      <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                    ) : recentOrders.length === 0 ? (
+                      <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد.' : 'No orders yet.'}</p>
+                    ) : (
+                      recentOrders.map((o) => (
+                        <button key={o.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('orders')}>
+                          <span className="admin-recent-id">#{o.order_number}</span>
+                          <span className="admin-recent-customer">{o.customer_name}</span>
+                          <span className="admin-recent-date">{(o.created_at || '').slice(0, 10)}</span>
+                          <span className="admin-recent-total">{formatEGP(o.total_egp ?? o.subtotal_egp, language)}</span>
+                          <span className="admin-pill" style={{ color: STATUS_COLORS[o.status], background: `${STATUS_COLORS[o.status]}1f` }}>{orderStatusLabel(o.status, isAr)}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {ordersLoaded && pendingCount > 0 && (
+                    <p className="admin-pending-note">{isAr ? `هناك ${pendingCount} طلبات بحالة قيد الانتظار.` : `${pendingCount} orders are pending.`}</p>
+                  )}
+                </>
+              );
+            })()}
           </section>
         )}
 
@@ -928,7 +1192,8 @@ export default function Admin() {
                 <button
                   type="button"
                   className="mero-text-button"
-                  onClick={() =>
+                  onClick={() => {
+                    setSlugTouched(false);
                     setProductForm({
                       id: '',
                       slug: '',
@@ -952,8 +1217,8 @@ export default function Admin() {
                       stock: '5',
                       is_published: true,
                       is_featured: false,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Plus size={14} />
                   {isAr ? 'نموذج جديد' : 'New Blank Form'}
@@ -962,20 +1227,30 @@ export default function Admin() {
 
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Slug (URL identifier) *</span>
+                  <span>{isAr ? 'المعرّف في الرابط (Slug) *' : 'Slug (URL identifier) *'}</span>
                   <input
                     required
                     value={productForm.slug}
-                    onChange={(e) => setProductForm({ ...productForm, slug: e.target.value })}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      setProductForm({ ...productForm, slug: e.target.value });
+                    }}
                   />
                 </label>
 
                 <label className="mero-field">
-                  <span>Name (English) *</span>
+                  <span>{isAr ? 'الاسم (بالإنجليزية) *' : 'Name (English) *'}</span>
                   <input
                     required
                     value={productForm.name_en}
-                    onChange={(e) => setProductForm({ ...productForm, name_en: e.target.value })}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setProductForm((prev) => ({
+                        ...prev,
+                        name_en: name,
+                        ...(!prev.id && !slugTouched ? { slug: slugifyName(name) } : {}),
+                      }));
+                    }}
                   />
                 </label>
 
@@ -989,17 +1264,17 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Category (English) *</span>
+                  <span>{isAr ? 'التصنيف (بالإنجليزية) *' : 'Category (English) *'}</span>
                   <select
                     value={productForm.category}
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   >
-                    <option value="Dresses">Dresses</option>
-                    <option value="Abayas">Abayas</option>
-                    <option value="Kaftans">Kaftans</option>
-                    <option value="Tops">Tops</option>
-                    <option value="Sets">Sets</option>
-                    <option value="Exclusive Pieces">Exclusive Pieces</option>
+                    <option value="Dresses">{isAr ? 'فساتين' : 'Dresses'}</option>
+                    <option value="Abayas">{isAr ? 'عبايات' : 'Abayas'}</option>
+                    <option value="Kaftans">{isAr ? 'قفاطين' : 'Kaftans'}</option>
+                    <option value="Tops">{isAr ? 'بلوزات' : 'Tops'}</option>
+                    <option value="Sets">{isAr ? 'أطقم' : 'Sets'}</option>
+                    <option value="Exclusive Pieces">{isAr ? 'قطع حصرية' : 'Exclusive Pieces'}</option>
                   </select>
                 </label>
 
@@ -1013,7 +1288,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Price in EGP *</span>
+                  <span>{isAr ? 'السعر بالجنيه *' : 'Price in EGP *'}</span>
                   <input
                     type="number"
                     required
@@ -1023,7 +1298,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Compare-at Price (optional)</span>
+                  <span>{isAr ? 'السعر قبل الخصم (اختياري)' : 'Compare-at Price (optional)'}</span>
                   <input
                     type="number"
                     value={productForm.compare_at_egp}
@@ -1079,7 +1354,7 @@ export default function Admin() {
                 )}
 
                 <label className="mero-field">
-                  <span>Sizes (Comma separated)</span>
+                  <span>{isAr ? 'المقاسات (مفصولة بفاصلة)' : 'Sizes (Comma separated)'}</span>
                   <input
                     value={productForm.sizes}
                     onChange={(e) => setProductForm({ ...productForm, sizes: e.target.value })}
@@ -1088,7 +1363,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Colors (Comma separated)</span>
+                  <span>{isAr ? 'الألوان (مفصولة بفاصلة)' : 'Colors (Comma separated)'}</span>
                   <input
                     value={productForm.colors}
                     onChange={(e) => setProductForm({ ...productForm, colors: e.target.value })}
@@ -1197,7 +1472,7 @@ export default function Admin() {
 
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Description (English)</span>
+                  <span>{isAr ? 'الوصف (بالإنجليزية)' : 'Description (English)'}</span>
                   <textarea
                     value={productForm.description_en}
                     onChange={(e) => setProductForm({ ...productForm, description_en: e.target.value })}
@@ -1251,9 +1526,12 @@ export default function Admin() {
                         {p.name_en} / {p.name_ar}
                       </strong>
                       <small>
-                        Slug: {p.slug} · {p.price_egp} EGP · {p.production_type} · Stock: {p.stock} ·{' '}
-                        {p.is_published ? 'Published' : 'Draft'}
+                        Slug: {p.slug} · {p.price_egp} EGP · Stock: {p.stock}
                       </small>
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={p.is_published ? { color: '#15803d', background: '#15803d1f' } : { color: '#6b5b62', background: '#6b5b621f' }}>{p.is_published ? (isAr ? 'منشور' : 'Published') : (isAr ? 'مسودة' : 'Draft')}</span>
+                        <span className="admin-pill" style={p.production_type === 'made_to_order' ? { color: '#7c3aed', background: '#7c3aed1f' } : { color: '#8a6d3b', background: '#8a6d3b1f' }}>{p.production_type === 'made_to_order' ? (isAr ? 'يُصنع عند الطلب' : 'Made to order') : (isAr ? 'جاهز' : 'Ready')}</span>
+                      </span>
                     </div>
                     <div className="mero-row-actions">
                       <button
@@ -1587,7 +1865,7 @@ export default function Admin() {
         {/* 2. GALLERY MANAGEMENT TAB */}
         {activeTab === 'gallery' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة معرض صور المنتجات (product_images)' : 'Product Gallery Images Management'}</h2>
+            <h2>{isAr ? 'إدارة معرض صور المنتجات' : 'Product Gallery Images Management'}</h2>
             <div className="mb-4">
               <label className="mero-field max-w-sm">
                 <span>{isAr ? 'اختاري المنتج' : 'Select Product for Gallery'}</span>
@@ -1644,7 +1922,7 @@ export default function Admin() {
 
                   <div className="mero-form-grid">
                     <label className="mero-field">
-                      <span>Image URL *</span>
+                      <span>{isAr ? 'رابط الصورة *' : 'Image URL *'}</span>
                       <input
                         required
                         type="url"
@@ -1655,7 +1933,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Alt Text</span>
+                      <span>{isAr ? 'النص البديل للصورة' : 'Alt Text'}</span>
                       <input
                         placeholder="Detail of lotus embroidery"
                         value={galleryForm.alt_text}
@@ -1664,7 +1942,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Sort Order</span>
+                      <span>{isAr ? 'ترتيب العرض' : 'Sort Order'}</span>
                       <input
                         type="number"
                         value={galleryForm.sort_order}
@@ -1728,7 +2006,7 @@ export default function Admin() {
         {/* 3. VARIANTS & STOCK MANAGEMENT TAB */}
         {activeTab === 'variants' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة المقاسات والمخزون (product_variants)' : 'Variant & Stock Management'}</h2>
+            <h2>{isAr ? 'إدارة المقاسات والمخزون' : 'Variant & Stock Management'}</h2>
             <div className="mb-4">
               <label className="mero-field max-w-sm">
                 <span>{isAr ? 'اختاري المنتج' : 'Select Product for Variants'}</span>
@@ -1753,7 +2031,7 @@ export default function Admin() {
                   </h3>
                   <div className="mero-form-grid">
                     <label className="mero-field">
-                      <span>Size (المقاس) *</span>
+                      <span>{isAr ? 'المقاس *' : 'Size *'}</span>
                       <input
                         required
                         value={variantForm.size}
@@ -1763,7 +2041,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Color (اللون) *</span>
+                      <span>{isAr ? 'اللون *' : 'Color *'}</span>
                       <input
                         required
                         value={variantForm.color}
@@ -1773,7 +2051,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>SKU Code</span>
+                      <span>{isAr ? 'كود المنتج (SKU)' : 'SKU Code'}</span>
                       <input
                         value={variantForm.sku}
                         onChange={(e) => setVariantForm({ ...variantForm, sku: e.target.value })}
@@ -1782,7 +2060,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Stock Quantity (الكمية في المخزون) *</span>
+                      <span>{isAr ? 'الكمية في المخزون *' : 'Stock Quantity *'}</span>
                       <input
                         type="number"
                         required
@@ -1868,11 +2146,11 @@ export default function Admin() {
         {/* 4. SHIPPING RATES TAB */}
         {activeTab === 'shipping' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة أسعار الشحن للمحافظات (shipping_rates)' : 'Egyptian Governorate Shipping Rates'}</h2>
+            <h2>{isAr ? 'إدارة أسعار الشحن للمحافظات' : 'Egyptian Governorate Shipping Rates'}</h2>
             <form onSubmit={handleSaveShippingRate} className="border p-4 bg-[#fffaf8] my-4">
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Governorate (المحافظة) *</span>
+                  <span>{isAr ? 'المحافظة *' : 'Governorate *'}</span>
                   <input
                     required
                     value={shippingForm.governorate}
@@ -1891,7 +2169,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Shipping Fee (EGP) *</span>
+                  <span>{isAr ? 'رسوم الشحن (جنيه) *' : 'Shipping Fee (EGP) *'}</span>
                   <input
                     type="number"
                     required
@@ -1951,7 +2229,7 @@ export default function Admin() {
                       {r.area.trim() ? (isAr ? `المنطقة: ${r.area}` : `Area: ${r.area}`) : (isAr ? 'سعر افتراضي للمحافظة' : 'Governorate default')}
                     </span>
                     <span className="text-xs text-[#806f77] ml-2">
-                      {r.fee_egp} EGP · {r.estimated_min_days}–{r.estimated_max_days} days · {r.is_active ? 'Active' : 'Inactive'}
+                      {shippingRateSummary(r, isAr)}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -1970,11 +2248,12 @@ export default function Admin() {
                         });
                       }}
                     >
-                      Edit
+                      {isAr ? 'تعديل' : 'Edit'}
                     </button>
                     <button
                       type="button"
                       className="mero-text-button danger"
+                      aria-label={isAr ? 'حذف سعر الشحن' : 'Delete shipping rate'}
                       onClick={() => handleDeleteShippingRate(r.id)}
                     >
                       <Trash2 size={13} />
@@ -1993,7 +2272,7 @@ export default function Admin() {
             <form onSubmit={handleSaveCoupon} className="border p-4 bg-[#fffaf8] my-4">
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Coupon Code *</span>
+                  <span>{isAr ? 'كود الكوبون *' : 'Coupon Code *'}</span>
                   <input
                     required
                     value={couponForm.code}
@@ -2003,20 +2282,20 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Discount Type</span>
+                  <span>{isAr ? 'نوع الخصم' : 'Discount Type'}</span>
                   <select
                     value={couponForm.discount_type}
                     onChange={(e) =>
                       setCouponForm({ ...couponForm, discount_type: e.target.value as any })
                     }
                   >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (EGP)</option>
+                    <option value="percentage">{isAr ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
+                    <option value="fixed">{isAr ? 'مبلغ ثابت (جنيه)' : 'Fixed Amount (EGP)'}</option>
                   </select>
                 </label>
 
                 <label className="mero-field">
-                  <span>Discount Value *</span>
+                  <span>{isAr ? 'قيمة الخصم *' : 'Discount Value *'}</span>
                   <input
                     type="number"
                     required
@@ -2026,7 +2305,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Minimum Order EGP</span>
+                  <span>{isAr ? 'الحد الأدنى للطلب (جنيه)' : 'Minimum Order EGP'}</span>
                   <input
                     type="number"
                     value={couponForm.min_order_egp}
@@ -2099,16 +2378,18 @@ export default function Admin() {
                   className="p-1.5 text-xs border border-stone-300 bg-white"
                 >
                   <option value="all">{isAr ? 'جميع الحالات' : 'All Statuses'}</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="in_production">In Production</option>
-                  <option value="ready_to_ship">Ready to Ship</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
+                  {ORDER_STATUSES.map((s) => (
+                    <option key={s} value={s}>{orderStatusLabel(s, isAr)}</option>
+                  ))}
                 </select>
               </div>
             </div>
+            {orders.length === 0 && (
+              <p className="mero-empty">{readStates.orders === 'loaded' ? (isAr ? 'لا توجد طلبات بعد. تظهر الطلبات الجديدة هنا فور وصولها.' : 'No orders yet. New orders appear here as soon as they arrive.') : (isAr ? 'تعذر تأكيد خلو الطلبات حتى تنجح القراءة.' : 'Orders cannot be confirmed empty until the read succeeds.')}</p>
+            )}
+            {orders.length > 0 && orders.filter((o) => (orderStatusFilter === 'all' || o.status === orderStatusFilter)).length === 0 && (
+              <p className="mero-empty">{isAr ? 'لا توجد طلبات بهذه الحالة.' : 'No orders with this status.'}</p>
+            )}
             {orders
               .filter((o) => {
                 const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
@@ -2125,18 +2406,29 @@ export default function Admin() {
               .map((o) => (
                 <article key={o.id} className="mero-record flex-col items-start gap-3">
                   <div className="w-full flex justify-between items-start">
-                    <div>
+                    <div className="admin-record-fields">
                       <strong>
-                        {o.order_number} · {o.customer_name} ({o.phone})
+                        {o.order_number} · {o.customer_name}{' '}
+                        {o.phone ? (
+                          <>
+                            (<a href={phoneHref(o.phone)} className="underline">{o.phone}</a>){' '}
+                            <a href={whatsappHref(o.phone)} target="_blank" rel="noreferrer" className="underline font-semibold" aria-label={isAr ? 'فتح محادثة واتساب مع العميل، من غير إرسال تلقائي' : 'Open WhatsApp chat with customer, no auto-send'}>
+                              {isAr ? 'واتساب' : 'WhatsApp'}
+                            </a>
+                          </>
+                        ) : null}
                       </strong>
                       <small>
                         {o.governorate}, {o.city_area} · {o.address} · Total: {formatEGP(o.total_egp ?? o.subtotal_egp, language)}
                       </small>
-                      <small>Method: {o.payment_method} · Date: {new Date(o.created_at).toLocaleString()}</small>
+                      <small>{isAr ? 'طريقة الدفع' : 'Method'}: {o.payment_method} · {isAr ? 'التاريخ' : 'Date'}: {new Date(o.created_at).toLocaleString()}</small>
                       {o.notes && <small className="text-[#947381]">Notes: {o.notes}</small>}
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={{ color: STATUS_COLORS[o.status] || '#6b5b62', background: `${STATUS_COLORS[o.status] || '#6b5b62'}1f` }}>{orderStatusLabel(o.status, isAr)}</span>
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="admin-record-actions flex items-center gap-2">
                       <input
                         type="text"
                         placeholder={isAr ? 'ملاحظة إدارية خاصة (لا تظهر للعميل)...' : 'Private admin note (not shown to customer)'}
@@ -2150,24 +2442,44 @@ export default function Admin() {
                         className="text-xs p-1 border w-44 bg-white"
                       />
                       <select
-                        value={o.status}
-                        onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                        value={pendingOrderStatus[o.id] ?? o.status}
+                        onChange={(e) => setPendingOrderStatus({ ...pendingOrderStatus, [o.id]: e.target.value })}
                         className="text-xs p-1 border font-medium bg-white"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="in_production">In Production</option>
-                        <option value="ready_to_ship">Ready to Ship</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
+                        {ORDER_STATUSES.map((s) => (
+                          <option key={s} value={s}>{orderStatusLabel(s, isAr)}</option>
+                        ))}
                       </select>
+                      {pendingOrderStatus[o.id] && pendingOrderStatus[o.id] !== o.status && (
+                        <>
+                          <button
+                            type="button"
+                            className="text-xs p-1 border font-semibold bg-[#3f4530] text-white" style={{ color: '#f6f2e9' }}
+                            onClick={() => handleUpdateOrderStatus(o.id, pendingOrderStatus[o.id])}
+                          >
+                            {isAr ? 'تأكيد الحفظ' : 'Confirm save'}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs p-1 border bg-white"
+                            onClick={() =>
+                              setPendingOrderStatus((prev) => {
+                                const next = { ...prev };
+                                delete next[o.id];
+                                return next;
+                              })
+                            }
+                          >
+                            {isAr ? 'تراجع' : 'Revert'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* Line items if available */}
                   {o.items && o.items.length > 0 && (
-                    <div className="w-full bg-[#fffaf8] p-2 border text-xs">
+                    <div className="admin-soft-panel w-full bg-[#fffaf8] p-2 border text-xs">
                       <span className="font-semibold block mb-1">Items ({o.items.length}):</span>
                       {o.items.map((it: any) => (
                         <div key={it.id} className="flex justify-between py-0.5">
@@ -2182,7 +2494,7 @@ export default function Admin() {
 
                   {/* Status History Audit Log */}
                   {o.status_history && o.status_history.length > 0 && (
-                    <div className="w-full bg-white p-2 border text-xs">
+                    <div className="admin-soft-panel w-full bg-white p-2 border text-xs">
                       <span className="font-semibold block text-[#49343f] mb-1">
                         {isAr ? 'سجل الحالات والملاحظات:' : 'Status History Log:'}
                       </span>
@@ -2196,7 +2508,7 @@ export default function Admin() {
                               <span className="text-[#806f77]">
                                 {time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
-                              <span className="font-medium uppercase text-[#49343f]">[{st}]</span>
+                              <span className="font-medium uppercase text-[#49343f]">[{orderStatusLabel(st, isAr)}]</span>
                               {nt && <span>— {nt}</span>}
                             </div>
                           );
@@ -2213,16 +2525,24 @@ export default function Admin() {
         {/* 7. BESPOKE CUSTOM REQUESTS TAB */}
         {activeTab === 'custom_requests' && (
           <div className="mero-records">
-            <h2>{isAr ? 'طلبات التصميم الخاص (custom_design_requests)' : 'Bespoke Custom Design Inquiries'}</h2>
+            <h2>{isAr ? 'طلبات التصميم الخاص' : 'Bespoke Custom Design Inquiries'}</h2>
             {customRequests.length === 0 ? (
               <p className="mero-empty">{readStates.custom_requests === 'loaded' ? isAr ? 'لا توجد طلبات تصميم خاصة.' : 'No custom design inquiries yet.' : isAr ? 'تعذر تأكيد خلو القائمة حتى تنجح القراءة.' : 'The list cannot be confirmed empty until the read succeeds.'}</p>
             ) : (
               customRequests.map((r) => (
                 <article key={r.id} className="mero-record flex-col items-start gap-2">
                   <div className="w-full flex justify-between items-start">
-                    <div>
+                    <div className="admin-record-fields">
                       <strong>
-                        {r.request_number} · {r.customer_name} ({r.phone})
+                        {r.request_number} · {r.customer_name}{' '}
+                        {r.phone ? (
+                          <>
+                            (<a href={phoneHref(r.phone)} className="underline">{r.phone}</a>){' '}
+                            <a href={whatsappHref(r.phone)} target="_blank" rel="noreferrer" className="underline font-semibold" aria-label={isAr ? 'فتح محادثة واتساب مع العميل، من غير إرسال تلقائي' : 'Open WhatsApp chat with customer, no auto-send'}>
+                              {isAr ? 'واتساب' : 'WhatsApp'}
+                            </a>
+                          </>
+                        ) : null}
                       </strong>
                       <small>
                         Garment: {r.garment_type} · Fabric: {r.preferred_fabric || '—'} · Colors: {r.preferred_colors || '—'}
@@ -2231,6 +2551,9 @@ export default function Admin() {
                         Budget: {r.target_budget_egp ? `${r.target_budget_egp} EGP` : 'Not specified'} · Deposit Rate: {r.deposit_rate}%
                       </small>
                       <small className="text-[#3e3037] mt-1">{r.description}</small>
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={{ color: REQUEST_COLORS[r.status] || '#6b5b62', background: `${REQUEST_COLORS[r.status] || '#6b5b62'}1f` }}>{r.status.replace(/_/g, ' ')}</span>
+                      </span>
                     </div>
 
                     <select
@@ -2238,13 +2561,13 @@ export default function Admin() {
                       onChange={(e) => adminUpdateCustomDesignStatus(r.id, e.target.value)}
                       className="text-xs p-1 border font-medium"
                     >
-                      <option value="new">New</option>
-                      <option value="contacted">Contacted</option>
-                      <option value="quoted">Quoted</option>
-                      <option value="deposit_paid">Deposit Paid</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      <option value="new">{isAr ? 'جديد' : 'New'}</option>
+                      <option value="contacted">{isAr ? 'تم التواصل' : 'Contacted'}</option>
+                      <option value="quoted">{isAr ? 'تم التسعير' : 'Quoted'}</option>
+                      <option value="deposit_paid">{isAr ? 'تم دفع العربون' : 'Deposit Paid'}</option>
+                      <option value="in_progress">{isAr ? 'قيد التنفيذ' : 'In Progress'}</option>
+                      <option value="completed">{isAr ? 'مكتمل' : 'Completed'}</option>
+                      <option value="cancelled">{isAr ? 'ملغي' : 'Cancelled'}</option>
                     </select>
                   </div>
 

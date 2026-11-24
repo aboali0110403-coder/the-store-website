@@ -382,3 +382,10 @@ test('Phase 6 migration contract preserves sole trigger history, idempotency, ca
   assert.match(rateResolution[0], /Shipping rate is not configured/);
   assert.doesNotMatch(rateResolution[0], /LIMIT\s+1/i);
 });
+
+import { friendlyServerMessage } from './commerceLogic';
+test('friendlyServerMessage localizes only the rate-limit message', () => {
+  assert.match(friendlyServerMessage('Too many requests. Please try again later.', true), /المحاولة/);
+  assert.match(friendlyServerMessage('Too many requests. Please try again later.', false), /try again/i);
+  assert.equal(friendlyServerMessage('Product is no longer available.', true), 'Product is no longer available.');
+});

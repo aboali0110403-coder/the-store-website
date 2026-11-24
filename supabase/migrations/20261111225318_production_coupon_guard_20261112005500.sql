@@ -1,5 +1,4 @@
--- Necessary corrective replacement for production_order_integrity_20261112003000.
--- Splits NOT FOUND from record-field access for invalid/inactive coupons.
+-- Necessary corrective replacement: split NOT FOUND from record-field access.
 CREATE OR REPLACE FUNCTION public.submit_store_order(
   p_customer_name text,
   p_phone text,
@@ -39,37 +38,25 @@ BEGIN
   IF p_idempotency_key IS NOT NULL AND length(trim(p_idempotency_key)) < 16 THEN RAISE EXCEPTION 'Idempotency key must contain at least 16 characters.'; END IF;
   IF p_idempotency_key IS NOT NULL THEN
     PERFORM pg_advisory_xact_lock(hashtextextended(trim(p_idempotency_key), 0));
-    SELECT o.id, o.order_number, o.subtotal_egp, o.shipping_egp, o.total_egp
-    INTO order_id, order_number, subtotal_egp, shipping_egp, total_egp
+    SELECT o.id, o.order_number, o.subtotal_egp, o.shipping_egp, o.total_egp INTO order_id, order_number, subtotal_egp, shipping_egp, total_egp
     FROM public.orders o WHERE o.idempotency_key = trim(p_idempotency_key) LIMIT 1;
     IF FOUND THEN RETURN NEXT; RETURN; END IF;
   END IF;
-  SELECT sr.fee_egp INTO v_shipping
-  FROM public.shipping_rates sr
-  WHERE lower(trim(sr.governorate)) = lower(trim(coalesce(p_governorate, '')))
-    AND sr.is_active = true LIMIT 1;
+  SELECT sr.fee_egp INTO v_shipping FROM public.shipping_rates sr WHERE lower(trim(sr.governorate)) = lower(trim(coalesce(p_governorate, ''))) AND sr.is_active = true LIMIT 1;
   v_shipping := coalesce(v_shipping, 60);
   FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
     v_qty := (v_item->>'quantity')::integer;
     IF v_qty IS NULL OR v_qty < 1 OR v_qty > 20 THEN RAISE EXCEPTION 'Item quantity must be between 1 and 20.'; END IF;
-    SELECT * INTO v_product
-    FROM public.products
-    WHERE id = (v_item->>'product_id')::uuid AND is_published = true FOR UPDATE;
+    SELECT * INTO v_product FROM public.products WHERE id = (v_item->>'product_id')::uuid AND is_published = true FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Product is no longer available.'; END IF;
     SELECT EXISTS(SELECT 1 FROM public.product_variants pv WHERE pv.product_id = v_product.id AND pv.is_active = true) INTO v_has_variants;
     IF v_product.production_type IN ('ready', 'limited') THEN
       IF v_has_variants THEN
-        SELECT * INTO v_variant FROM public.product_variants pv
-        WHERE pv.product_id = v_product.id
-          AND lower(trim(pv.size)) = lower(trim(coalesce(v_item->>'size', '')))
-          AND lower(trim(pv.color)) = lower(trim(coalesce(v_item->>'color', '')))
-          AND pv.is_active = true FOR UPDATE;
+        SELECT * INTO v_variant FROM public.product_variants pv WHERE pv.product_id = v_product.id AND lower(trim(pv.size)) = lower(trim(coalesce(v_item->>'size', ''))) AND lower(trim(pv.color)) = lower(trim(coalesce(v_item->>'color', ''))) AND pv.is_active = true FOR UPDATE;
         IF NOT FOUND THEN RAISE EXCEPTION 'Selected size/color is not available.'; END IF;
         IF v_variant.stock < v_qty THEN RAISE EXCEPTION 'Insufficient stock.'; END IF;
         UPDATE public.product_variants SET stock = stock - v_qty, updated_at = now() WHERE id = v_variant.id;
-        UPDATE public.products p
-        SET stock = (SELECT coalesce(sum(pv.stock), 0) FROM public.product_variants pv WHERE pv.product_id = p.id AND pv.is_active = true), updated_at = now()
-        WHERE p.id = v_product.id;
+        UPDATE public.products p SET stock = (SELECT coalesce(sum(pv.stock), 0) FROM public.product_variants pv WHERE pv.product_id = p.id AND pv.is_active = true), updated_at = now() WHERE p.id = v_product.id;
       ELSE
         IF v_product.stock < v_qty THEN RAISE EXCEPTION 'Insufficient stock.'; END IF;
         UPDATE public.products SET stock = stock - v_qty, updated_at = now() WHERE id = v_product.id;
@@ -97,32 +84,14 @@ BEGIN
   END IF;
   v_total := greatest(0, v_subtotal - v_discount + v_shipping);
   v_order_number := 'MERO-' || nextval('public.order_number_seq')::text;
-  INSERT INTO public.orders(
-    id, order_number, customer_name, phone, email, governorate, city_area, address,
-    notes, payment_method, status, subtotal_egp, shipping_egp, discount_egp, total_egp,
-    admin_notes, tracking_token, idempotency_key, coupon_id
-  ) VALUES (
-    v_order_id, v_order_number, trim(p_customer_name), trim(p_phone),
-    nullif(trim(coalesce(p_email, '')), ''), trim(p_governorate), trim(p_city_area), trim(p_address),
-    p_notes, coalesce(p_payment_method, 'cash_on_delivery'), 'pending', v_subtotal, v_shipping,
-    v_discount, v_total,
-    CASE WHEN v_discount > 0 THEN 'Applied coupon: ' || v_coupon_code || ' (-' || v_discount || ' EGP)' ELSE NULL END,
-    gen_random_uuid(), nullif(trim(coalesce(p_idempotency_key, '')), ''),
-    CASE WHEN v_coupon_applied THEN v_coupon.id ELSE NULL END
-  );
+  INSERT INTO public.orders(id, order_number, customer_name, phone, email, governorate, city_area, address, notes, payment_method, status, subtotal_egp, shipping_egp, discount_egp, total_egp, admin_notes, tracking_token, idempotency_key, coupon_id)
+  VALUES (v_order_id, v_order_number, trim(p_customer_name), trim(p_phone), nullif(trim(coalesce(p_email, '')), ''), trim(p_governorate), trim(p_city_area), trim(p_address), p_notes, coalesce(p_payment_method, 'cash_on_delivery'), 'pending', v_subtotal, v_shipping, v_discount, v_total, CASE WHEN v_discount > 0 THEN 'Applied coupon: ' || v_coupon_code || ' (-' || v_discount || ' EGP)' ELSE NULL END, gen_random_uuid(), nullif(trim(coalesce(p_idempotency_key, '')), ''), CASE WHEN v_coupon_applied THEN v_coupon.id ELSE NULL END);
   FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
     SELECT * INTO v_product FROM public.products WHERE id = (v_item->>'product_id')::uuid;
-    INSERT INTO public.order_items(
-      order_id, product_id, product_name_en, product_name_ar, size, color, quantity, unit_price_egp
-    ) VALUES (
-      v_order_id, v_product.id, v_product.name_en, v_product.name_ar,
-      coalesce(v_item->>'size', ''), coalesce(v_item->>'color', ''),
-      (v_item->>'quantity')::integer, v_product.price_egp
-    );
+    INSERT INTO public.order_items(order_id, product_id, product_name_en, product_name_ar, size, color, quantity, unit_price_egp)
+    VALUES (v_order_id, v_product.id, v_product.name_en, v_product.name_ar, coalesce(v_item->>'size', ''), coalesce(v_item->>'color', ''), (v_item->>'quantity')::integer, v_product.price_egp);
   END LOOP;
-  IF v_coupon_applied THEN
-    UPDATE public.coupons SET usage_count = usage_count + 1, updated_at = now() WHERE id = v_coupon.id;
-  END IF;
+  IF v_coupon_applied THEN UPDATE public.coupons SET usage_count = usage_count + 1, updated_at = now() WHERE id = v_coupon.id; END IF;
   INSERT INTO public.order_status_history(order_id, old_status, new_status, note, changed_by, is_internal)
   VALUES (v_order_id, NULL, 'pending', 'Order received via boutique online storefront', auth.uid(), false);
   RETURN QUERY SELECT v_order_id, v_order_number, v_subtotal, v_shipping, v_total;
