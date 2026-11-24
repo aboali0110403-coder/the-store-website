@@ -1796,3 +1796,7 @@ body.rtl .guide-grid,
   .mero-refresh-mobile { display: inline-flex; align-items: center; gap: 6px; min-height: 46px; margin: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); font-size: .9rem; }
   .admin-content > section { margin-top: 10px; }
 }
+
+/* Admin pass 2b: workbench does not need public-store chrome */
+body.admin-route .site-footer { display: none; }
+body.admin-route .admin-page { min-height: auto; }
