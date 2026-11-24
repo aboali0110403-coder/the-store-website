@@ -31,6 +31,11 @@ export default function ProductDetail() {
   const [addedNotice, setAddedNotice] = useState(false);
 
   useEffect(() => {
+    if (!product) return;
+    document.title = `${isAr ? product.nameAr : product.name} | Mero Boutique`;
+  }, [product, isAr]);
+
+  useEffect(() => {
     if (!slug) {
       setProduct(null);
       setLoading(false);

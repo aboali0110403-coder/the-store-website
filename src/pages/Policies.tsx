@@ -2,6 +2,7 @@ import React from 'react';
 import { useRoute, Link } from 'wouter';
 import { ArrowLeft, ShieldCheck, Truck, RotateCcw, FileText } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
+import NotFound from './NotFound';
 
 export default function Policies() {
   const [, params] = useRoute('/policies/:slug');
@@ -43,7 +44,8 @@ export default function Policies() {
     },
   };
 
-  const current = sections[slug] || sections.shipping;
+  const current = Object.prototype.hasOwnProperty.call(sections, slug) ? sections[slug] : undefined;
+  if (!current) return <NotFound />;
   const Icon = current.icon;
 
   return (
