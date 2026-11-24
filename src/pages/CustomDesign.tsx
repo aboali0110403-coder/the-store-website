@@ -287,7 +287,7 @@ export default function CustomDesign() {
           <p>
             {isAr
               ? 'شاركينا فكرتك أو مناسبتك الخاصة؛ لنحول خيالك إلى قطعة مطرزة يدوياً تُفصل خصيصاً لمقاسك وذوقك الراقي.'
-              : 'Work directly with our Cairo atelier. Tell us your silhouette, preferred natural fabrics, and embroidery dreams.'}
+              : 'Work directly with our atelier. Tell us your silhouette, preferred natural fabrics, and embroidery dreams.'}
           </p>
         </div>
 
@@ -595,11 +595,11 @@ export default function CustomDesign() {
             </ul>
 
             <div className="custom-deposit-note">
-              <strong>{isAr ? 'نسبة العربون القانونية:' : 'Statutory Deposit Policy:'}</strong>
+              <strong>{isAr ? 'نسبة العربون:' : 'Deposit Policy:'}</strong>
               <p>
                 {isAr
-                  ? 'معدل العربون ثابت ومحدد بنسبة ٣٠٪ وفق معايير الحرفة وقانون حماية المستهلك للسلع المصنعة حسب الطلب.'
-                  : 'The fixed 30% deposit rate covers custom fabric procurement and dedicated artisan hours.'}
+                  ? 'العربون المدفوع ٣٠٪ من قيمة الطلب، وهو غير مسترد.'
+                  : 'The deposit paid is 30% of the order value and is non-refundable.'}
               </p>
             </div>
           </aside>
