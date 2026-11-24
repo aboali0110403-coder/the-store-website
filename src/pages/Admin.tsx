@@ -80,6 +80,11 @@ const STATUS_COLORS: Record<string, string> = {
   ready_to_ship: '#0f766e', shipped: '#4d7c0f', delivered: '#15803d', cancelled: '#b91c1c',
 };
 
+const REQUEST_LABELS_AR: Record<string, string> = {
+  new: 'جديد', contacted: 'تم التواصل', quoted: 'تم التسعير', deposit_paid: 'تم دفع العربون',
+  in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغي',
+};
+
 const REQUEST_COLORS: Record<string, string> = {
   new: '#b45309', contacted: '#1d4ed8', quoted: '#7c3aed', deposit_paid: '#0f766e',
   in_progress: '#4d7c0f', completed: '#15803d', cancelled: '#b91c1c',
@@ -1526,7 +1531,7 @@ export default function Admin() {
                         {p.name_en} / {p.name_ar}
                       </strong>
                       <small>
-                        Slug: {p.slug} · {p.price_egp} EGP · Stock: {p.stock}
+                        {isAr ? 'الرابط' : 'Slug'}: {p.slug} · {p.price_egp} {isAr ? 'جنيه' : 'EGP'} · {isAr ? 'المخزون' : 'Stock'}: {p.stock}
                       </small>
                       <span className="admin-pill-row">
                         <span className="admin-pill" style={p.is_published ? { color: '#15803d', background: '#15803d1f' } : { color: '#6b5b62', background: '#6b5b621f' }}>{p.is_published ? (isAr ? 'منشور' : 'Published') : (isAr ? 'مسودة' : 'Draft')}</span>
@@ -1816,7 +1821,7 @@ export default function Admin() {
                           {isAr ? cat.name : cat.nameAr}
                         </p>
                         <small className="text-[10px] text-[#9c8993] block mt-0.5">
-                          Filter: <span className="font-mono">{cat.filter}</span>
+                          {isAr ? 'الفلتر' : 'Filter'}: <span className="font-mono">{cat.filter}</span>
                         </small>
                       </div>
                     </div>
@@ -1980,7 +1985,7 @@ export default function Admin() {
                           />
                           <small className="truncate text-[10px] text-[#806f77]">{img.image_url}</small>
                           <div className="flex justify-between items-center text-xs">
-                            <span>Order: {img.sort_order}</span>
+                            <span>{isAr ? 'الترتيب' : 'Order'}: {img.sort_order}</span>
                             <button
                               type="button"
                               className="text-[#a34d55]"
@@ -2101,7 +2106,7 @@ export default function Admin() {
                               {v.size} · {v.color}
                             </strong>
                             <span className="text-xs text-[#806f77] ml-2">
-                              SKU: {v.sku || '—'} · Stock: {v.stock} · {v.is_active ? 'Active' : 'Disabled'}
+                              {isAr ? 'رمز المنتج' : 'SKU'}: {v.sku || '—'} · {isAr ? 'المخزون' : 'Stock'}: {v.stock} · {v.is_active ? (isAr ? 'مفعّل' : 'Active') : (isAr ? 'معطّل' : 'Disabled')}
                             </span>
                           </div>
                           <div className="flex gap-2">
@@ -2545,14 +2550,14 @@ export default function Admin() {
                         ) : null}
                       </strong>
                       <small>
-                        Garment: {r.garment_type} · Fabric: {r.preferred_fabric || '—'} · Colors: {r.preferred_colors || '—'}
+                        {isAr ? 'القطعة' : 'Garment'}: {r.garment_type} · {isAr ? 'القماش' : 'Fabric'}: {r.preferred_fabric || '—'} · {isAr ? 'الألوان' : 'Colors'}: {r.preferred_colors || '—'}
                       </small>
                       <small>
-                        Budget: {r.target_budget_egp ? `${r.target_budget_egp} EGP` : 'Not specified'} · Deposit Rate: {r.deposit_rate}%
+                        {isAr ? 'الميزانية' : 'Budget'}: {r.target_budget_egp ? `${r.target_budget_egp} ${isAr ? 'جنيه' : 'EGP'}` : (isAr ? 'غير محددة' : 'Not specified')} · {isAr ? 'نسبة العربون' : 'Deposit Rate'}: {r.deposit_rate}%
                       </small>
                       <small className="text-[#3e3037] mt-1">{r.description}</small>
                       <span className="admin-pill-row">
-                        <span className="admin-pill" style={{ color: REQUEST_COLORS[r.status] || '#6b5b62', background: `${REQUEST_COLORS[r.status] || '#6b5b62'}1f` }}>{r.status.replace(/_/g, ' ')}</span>
+                        <span className="admin-pill" style={{ color: REQUEST_COLORS[r.status] || '#6b5b62', background: `${REQUEST_COLORS[r.status] || '#6b5b62'}1f` }}>{isAr ? (REQUEST_LABELS_AR[r.status] || r.status.replace(/_/g, ' ')) : r.status.replace(/_/g, ' ')}</span>
                       </span>
                     </div>
 
