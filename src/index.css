@@ -643,6 +643,7 @@ img { display: block; max-width: 100%; }
   .category-grid { grid-template-columns: repeat(3, 1fr); row-gap: 22px; }
   .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 14px; }
   .craft-layout, .newsletter-inner, .stats-inner, .checkout-layout, .product-detail-layout, .custom-design-layout, .policy-layout { grid-template-columns: 1fr; }
+  .checkout-layout { grid-template-columns: minmax(0, 1fr); }
   .order-summary { order: -1; }
   .shop-grid-layout { grid-template-columns: 1fr; }
   .filter-toggle { display: inline-flex; }
@@ -665,6 +666,10 @@ img { display: block; max-width: 100%; }
   .footer-inner { grid-template-columns: 1fr; gap: 28px; }
   .checkout-header { grid-template-columns: 1fr auto; }
   .checkout-wordmark { display: none; }
+  .page-intro-inner { flex-direction: column; align-items: flex-start; }
+  .shop-toolbar { flex-wrap: wrap; }
+  .search-field { flex: 1 1 100%; min-width: 0; }
+  .search-field input { min-width: 0; }
   .mero-form-grid { grid-template-columns: 1fr; }
   .admin-topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
   .admin-topbar .flex { width: 100%; justify-content: space-between; }
