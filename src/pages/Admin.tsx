@@ -956,28 +956,57 @@ export default function Admin() {
             <p className="admin-overview-note">{isAr ? 'الأعداد أدناه محسوبة من السجلات التي نجح تحميلها في هذه الجلسة فقط.' : 'Counts below are calculated only from records successfully loaded in this session.'}</p>
             {(() => {
               const readValue = (key: string, count: number) =>
-                readStates[key] === 'loaded' ? String(count) : readStates[key] === 'loading' ? (isAr ? '…' : '…') : (isAr ? 'غير متاح' : 'Unavailable');
+                readStates[key] === 'loaded' ? String(count) : readStates[key] === 'loading' ? '…' : (isAr ? 'غير متاح' : 'Unavailable');
               const ordersLoaded = readStates.orders === 'loaded';
+              const productsLoaded = readStates.products === 'loaded';
               const nonCancelled = orders.filter((o) => o.status !== 'cancelled');
               const revenue = nonCancelled.reduce((sum, o) => sum + (o.total_egp ?? o.subtotal_egp ?? 0), 0);
               const pendingCount = orders.filter((o) => o.status === 'pending').length;
+              const STATUS_COLORS: Record<string, string> = {
+                pending: '#b45309', confirmed: '#1d4ed8', in_production: '#7c3aed',
+                ready_to_ship: '#0f766e', shipped: '#4d7c0f', delivered: '#15803d', cancelled: '#b91c1c',
+              };
               const statusCounts = ORDER_STATUSES.map((s) => ({ status: s, count: orders.filter((o) => o.status === s).length }));
-              const maxStatus = Math.max(1, ...statusCounts.map((s) => s.count));
-              const recentOrders = [...orders].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 5);
-              const lowStock = products.filter((p: any) => p.production_type !== 'made_to_order' && Number(p.stock) <= 2);
+              const totalOrders = orders.length;
+              let acc = 0;
+              const donutSegs = statusCounts.filter((s) => s.count > 0).map((s) => {
+                const start = acc / Math.max(1, totalOrders);
+                acc += s.count;
+                return { ...s, start, frac: s.count / Math.max(1, totalOrders) };
+              });
+              const byDay: Record<string, number> = {};
+              nonCancelled.forEach((o) => {
+                const d = (o.created_at || '').slice(0, 10);
+                if (d) byDay[d] = (byDay[d] || 0) + (o.total_egp ?? o.subtotal_egp ?? 0);
+              });
+              const days = Object.keys(byDay).sort();
+              const vals = days.map((d) => byDay[d]);
+              const maxV = Math.max(1, ...vals);
+              const pts = days.map((d, i) => [days.length === 1 ? 50 : (i / (days.length - 1)) * 100, 100 - (vals[i] / maxV) * 86 - 7]);
+              const linePts = pts.map((p) => p.join(',')).join(' ');
+              const areaPts = `0,100 ${linePts} 100,100`;
+              const sales: Record<string, number> = {};
+              orders.forEach((o) => (((o as any).items || (o as any).order_items || []) as any[]).forEach((it) => {
+                const n = (isAr ? (it.product_name_ar || it.product_name_en) : (it.product_name_en || it.product_name_ar)) || '—';
+                sales[n] = (sales[n] || 0) + (it.unit_price_egp || 0) * (it.quantity || 1);
+              }));
+              const topPieces = Object.entries(sales).sort((a, b) => b[1] - a[1]).slice(0, 5);
+              const maxSale = Math.max(1, ...topPieces.map((t) => t[1]));
+              const recentOrders = [...orders].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 6);
               const kpis = [
-                { key: 'orders', label: isAr ? 'إجمالي الطلبات' : 'Total Orders', value: readValue('orders', orders.length) },
-                { key: 'orders', label: isAr ? 'طلبات قيد الانتظار' : 'Pending Orders', value: readValue('orders', pendingCount) },
-                { key: 'orders', label: isAr ? 'قيمة الطلبات' : 'Order Value', value: ordersLoaded ? formatEGP(revenue, language) : readValue('orders', 0) },
-                { key: 'custom_requests', label: isAr ? 'طلبات التصميم' : 'Custom Requests', value: readValue('custom_requests', customRequests.length) },
+                { key: 'orders', icon: <ShoppingBag size={18} />, label: isAr ? 'إجمالي الطلبات' : 'Total Orders', value: readValue('orders', orders.length), sub: isAr ? 'كل الطلبات المحملة' : 'all loaded orders' },
+                { key: 'orders', icon: <Clock size={18} />, label: isAr ? 'طلبات قيد الانتظار' : 'Pending Orders', value: readValue('orders', pendingCount), sub: isAr ? 'بانتظار التأكيد' : 'awaiting confirmation' },
+                { key: 'orders', icon: <DollarSign size={18} />, label: isAr ? 'قيمة الطلبات' : 'Order Value', value: ordersLoaded ? formatEGP(revenue, language) : readValue('orders', 0), sub: isAr ? 'باستثناء الملغي' : 'excl. cancelled' },
+                { key: 'custom_requests', icon: <Scissors size={18} />, label: isAr ? 'طلبات التصميم' : 'Custom Requests', value: readValue('custom_requests', customRequests.length), sub: isAr ? 'الوارد حتى الآن' : 'received to date' },
               ];
               return (
                 <>
                   <div className="admin-kpi-grid">
                     {kpis.map((kpi, i) => (
                       <button key={i} type="button" className="admin-kpi-card" onClick={() => setActiveTab(kpi.key as Tab)}>
-                        <span className="admin-kpi-label">{kpi.label}</span>
+                        <span className="admin-kpi-top"><span className="admin-kpi-icon" aria-hidden="true">{kpi.icon}</span><span className="admin-kpi-label">{kpi.label}</span></span>
                         <strong className="admin-kpi-value">{kpi.value}</strong>
+                        <span className="admin-kpi-sub">{kpi.sub}</span>
                       </button>
                     ))}
                   </div>
@@ -996,51 +1025,107 @@ export default function Admin() {
                   </div>
                   <div className="admin-dash-panels">
                     <div className="admin-dash-panel">
-                      <h3>{isAr ? 'الطلبات حسب الحالة' : 'Orders by Status'}</h3>
+                      <h3>{isAr ? 'إيراد الطلبات' : 'Order Revenue'}</h3>
                       {!ordersLoaded ? (
                         <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
-                      ) : orders.length === 0 ? (
-                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. ستظهر الحالات هنا فور وصول أول طلب.' : 'No orders yet. Status counts appear here as soon as the first order arrives.'}</p>
+                      ) : days.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. سيظهر منحنى الإيراد هنا فور وصول أول طلب.' : 'No orders yet. The revenue curve appears here as soon as the first order arrives.'}</p>
                       ) : (
-                        statusCounts.map(({ status, count }) => (
-                          <div key={status} className="admin-status-row">
-                            <span className="admin-status-name">{orderStatusLabel(status, isAr)}</span>
-                            <span className="admin-status-bar-wrap"><span className="admin-status-bar" style={{ width: `${Math.max(count > 0 ? 6 : 0, (count / maxStatus) * 100)}%` }} /></span>
-                            <strong className="admin-status-count">{count}</strong>
+                        <>
+                          <svg viewBox="0 0 100 46" className="admin-rev-chart" preserveAspectRatio="none" role="img" aria-label={isAr ? 'منحنى قيمة الطلبات بالأيام' : 'Order value by day'}>
+                            <polygon points={areaPts} className="admin-rev-area" />
+                            <polyline points={linePts} className="admin-rev-line" vectorEffect="non-scaling-stroke" />
+                          </svg>
+                          <p className="admin-chart-note">{days[0]} → {days[days.length - 1]} · {formatEGP(revenue, language)}</p>
+                        </>
+                      )}
+                      <h3 className="admin-dash-subhead">{isAr ? 'القطع الأعلى مبيعًا' : 'Top Pieces'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : topPieces.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا مبيعات مسجلة بعد.' : 'No sales recorded yet.'}</p>
+                      ) : (
+                        topPieces.map(([name, val]) => (
+                          <div key={name} className="admin-status-row">
+                            <span className="admin-status-name admin-piece-name">{name}</span>
+                            <span className="admin-status-bar-wrap"><span className="admin-status-bar" style={{ width: `${Math.max(6, (val / maxSale) * 100)}%` }} /></span>
+                            <strong className="admin-status-count">{formatEGP(val, language)}</strong>
                           </div>
                         ))
                       )}
                     </div>
                     <div className="admin-dash-panel">
-                      <h3>{isAr ? 'أحدث الطلبات' : 'Recent Orders'}</h3>
+                      <h3>{isAr ? 'حالات الطلبات' : 'Order Statistics'}</h3>
                       {!ordersLoaded ? (
                         <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
-                      ) : recentOrders.length === 0 ? (
-                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد.' : 'No orders yet.'}</p>
+                      ) : totalOrders === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. ستظهر الحالات هنا فور وصول أول طلب.' : 'No orders yet. Status counts appear here as soon as the first order arrives.'}</p>
                       ) : (
-                        recentOrders.map((o) => (
-                          <button key={o.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('orders')}>
-                            <span className="admin-recent-id">#{o.order_number}</span>
-                            <span className="admin-recent-customer">{o.customer_name}</span>
-                            <span className="admin-recent-total">{formatEGP(o.total_egp ?? o.subtotal_egp, language)}</span>
-                            <span className={`admin-recent-status status-${o.status}`}>{orderStatusLabel(o.status, isAr)}</span>
-                          </button>
-                        ))
+                        <div className="admin-donut-wrap">
+                          <svg viewBox="0 0 42 42" className="admin-donut" role="img" aria-label={isAr ? 'توزيع الطلبات على الحالات' : 'Orders by status'}>
+                            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="#eee5d8" strokeWidth="6" />
+                            {donutSegs.map((s) => (
+                              <circle key={s.status} cx="21" cy="21" r="15.9155" fill="none" stroke={STATUS_COLORS[s.status]} strokeWidth="6" strokeDasharray={`${(s.frac * 100).toFixed(2)} ${(100 - s.frac * 100).toFixed(2)}`} strokeDashoffset={(25 - s.start * 100).toFixed(2)} />
+                            ))}
+                            <text x="21" y="20.5" textAnchor="middle" className="admin-donut-total">{totalOrders}</text>
+                            <text x="21" y="26.5" textAnchor="middle" className="admin-donut-label">{isAr ? 'طلب' : 'orders'}</text>
+                          </svg>
+                          <div className="admin-donut-legend">
+                            {statusCounts.map((s) => (
+                              <div key={s.status} className="admin-legend-row">
+                                <span className="admin-legend-dot" style={{ background: STATUS_COLORS[s.status] }} />
+                                <span className="admin-legend-name">{orderStatusLabel(s.status, isAr)}</span>
+                                <strong>{s.count}</strong>
+                                <span className="admin-legend-pct">{totalOrders ? Math.round((s.count / totalOrders) * 100) : 0}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                      <h3 className="admin-dash-subhead">{isAr ? 'مخزون منخفض' : 'Low Stock'}</h3>
-                      {readStates.products !== 'loaded' ? (
+                      <h3 className="admin-dash-subhead">{isAr ? 'حالة المخزون' : 'Inventory Status'}</h3>
+                      {!productsLoaded ? (
                         <p className="admin-dash-empty">{isAr ? 'بيانات المنتجات غير متاحة.' : 'Product data unavailable.'}</p>
-                      ) : lowStock.length === 0 ? (
-                        <p className="admin-dash-empty">{isAr ? 'لا توجد قطع بمخزون منخفض (٢ أو أقل).' : 'No pieces at low stock (2 or fewer).'}</p>
+                      ) : products.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد منتجات بعد.' : 'No products yet.'}</p>
                       ) : (
-                        lowStock.map((p: any) => (
-                          <button key={p.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('products')}>
-                            <span className="admin-recent-customer">{isAr ? p.name_ar : p.name_en}</span>
-                            <strong className="admin-recent-total">{isAr ? `المتبقي ${p.stock}` : `${p.stock} left`}</strong>
-                          </button>
-                        ))
+                        products.map((p: any) => {
+                          const stock = Number(p.stock) || 0;
+                          const mto = p.production_type === 'made_to_order';
+                          const pill = mto
+                            ? { cls: 'mto', label: isAr ? 'يُصنع عند الطلب' : 'Made to order' }
+                            : stock === 0
+                              ? { cls: 'out', label: isAr ? 'نفد المخزون' : 'Out of Stock' }
+                              : stock <= 2
+                                ? { cls: 'low', label: isAr ? 'مخزون منخفض' : 'Low Stock' }
+                                : { cls: 'in', label: isAr ? 'متوفر' : 'In Stock' };
+                          return (
+                            <button key={p.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('products')}>
+                              <span className="admin-recent-customer">{isAr ? p.name_ar : p.name_en}</span>
+                              {!mto && <span className="admin-recent-total">{stock}</span>}
+                              <span className={`admin-pill pill-${pill.cls}`}>{pill.label}</span>
+                            </button>
+                          );
+                        })
                       )}
                     </div>
+                  </div>
+                  <div className="admin-dash-panel admin-panel-full">
+                    <h3>{isAr ? 'أحدث الطلبات' : 'Recent Orders'}</h3>
+                    {!ordersLoaded ? (
+                      <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                    ) : recentOrders.length === 0 ? (
+                      <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد.' : 'No orders yet.'}</p>
+                    ) : (
+                      recentOrders.map((o) => (
+                        <button key={o.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('orders')}>
+                          <span className="admin-recent-id">#{o.order_number}</span>
+                          <span className="admin-recent-customer">{o.customer_name}</span>
+                          <span className="admin-recent-date">{(o.created_at || '').slice(0, 10)}</span>
+                          <span className="admin-recent-total">{formatEGP(o.total_egp ?? o.subtotal_egp, language)}</span>
+                          <span className="admin-pill" style={{ color: STATUS_COLORS[o.status], background: `${STATUS_COLORS[o.status]}1f` }}>{orderStatusLabel(o.status, isAr)}</span>
+                        </button>
+                      ))
+                    )}
                   </div>
                   {ordersLoaded && pendingCount > 0 && (
                     <p className="admin-pending-note">{isAr ? `هناك ${pendingCount} طلبات بحالة قيد الانتظار.` : `${pendingCount} orders are pending.`}</p>
