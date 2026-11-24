@@ -564,6 +564,7 @@ export default function CustomDesign() {
 
           {/* Bespoke Guidance Aside */}
           <aside className="custom-design-aside">
+            <img src="/mero-dress.svg" alt="" aria-hidden="true" className="custom-design-dress-img" />
             <span className="eyebrow" style={{ color: '#49343f' }}>
               <Scissors size={14} />
               {isAr ? 'خطوات التنفيذ' : 'The Bespoke Process'}
