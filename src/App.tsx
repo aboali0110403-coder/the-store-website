@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Route, Switch } from 'wouter';
 import { BoutiqueProvider } from './components/SiteShell';
+import RouteMeta from './components/RouteMeta';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import NotFound from './pages/NotFound';
@@ -28,6 +29,7 @@ function RouteLoadingFallback() {
 export default function App() {
   return (
     <BoutiqueProvider>
+      <RouteMeta />
       <Suspense fallback={<RouteLoadingFallback />}>
         <Switch>
           <Route path="/" component={Home} />
