@@ -24,16 +24,16 @@
 }
 
 :root {
-  --ivory: #f5f1e8;
-  --rose: #d9c6c9;
-  --mauve: #a77d8e;
-  --plum: #60364a;
-  --burgundy: #442333;
-  --gold: #a77b3f;
-  --ink: #282127;
-  --muted: #62565c;
-  --line: rgba(68, 35, 51, .17);
-  --white: #fffdf9;
+  --ivory: #f6f2e9;
+  --rose: #e3dac8;
+  --mauve: #a3a68c;
+  --plum: #5a6142;
+  --burgundy: #3f4530;
+  --gold: #7d8260;
+  --ink: #2c2a23;
+  --muted: #6e695a;
+  --line: rgba(63, 69, 48, .16);
+  --white: #fffdf8;
   --radius: 2px;
   --sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --serif: "Cormorant Garamond", Georgia, serif;
@@ -167,7 +167,7 @@ img { display: block; max-width: 100%; }
 .atelier-intro { max-width: 54ch; margin: 25px 0 0; color: #4d4449; font-size: 1.05rem; line-height: 1.8; }
 .atelier-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .atelier-owner-note { max-width: 42ch; margin: 38px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
-.atelier-feature { position: relative; min-width: 0; padding: 24px 24px 0; background: #60364a; color: var(--ivory); }
+.atelier-feature { position: relative; min-width: 0; padding: 24px 24px 0; background: #5a6142; color: var(--ivory); }
 .atelier-feature::before { position: absolute; top: -17px; right: -17px; width: 42%; height: 38%; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); content: ""; pointer-events: none; }
 .atelier-feature-image { position: relative; z-index: 1; display: block; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; background: #d9c6c9; }
 .atelier-feature-image img { width: 100%; height: 100%; object-fit: cover; }
@@ -178,7 +178,7 @@ img { display: block; max-width: 100%; }
 .atelier-feature-caption p { margin: 0; color: #f1e8df; font-size: .88rem; }
 .atelier-save,.atelier-add { display: inline-grid; min-width: 44px; min-height: 44px; place-items: center; border: 1px solid rgba(255,255,255,.55); background: transparent; color: inherit; }
 .atelier-save.is-saved { color: #f5cbd2; }
-.atelier-feature-empty { min-height: 460px; display: flex; flex-direction: column; justify-content: flex-end; padding: clamp(24px, 5vw, 54px); background: linear-gradient(150deg, #60364a 5%, #442333 100%); color: var(--ivory); }
+.atelier-feature-empty { min-height: 460px; display: flex; flex-direction: column; justify-content: flex-end; padding: clamp(24px, 5vw, 54px); background: linear-gradient(150deg, #5a6142 5%, #3f4530 100%); color: var(--ivory); }
 .atelier-feature-empty > span { color: #e2c992; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; }
 .atelier-feature-empty p { max-width: 32ch; margin: 12px 0 0; font-family: var(--serif); font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.1; }
 .atelier-categories,.atelier-catalog { width: min(1240px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0; border-top: 1px solid var(--line); }
@@ -389,7 +389,7 @@ img { display: block; max-width: 100%; }
 /* Cart Drawer */
 .drawer-layer { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; }
 .drawer-overlay { position: absolute; inset: 0; border: 0; background: rgba(35,25,31,.5); animation: fadeIn .2s ease; }
-.cart-drawer { position: relative; z-index: 1; display: flex; width: min(480px, 100%); flex-direction: column; background: var(--ivory); box-shadow: -10px 0 35px rgba(73,52,63,.15); animation: slideIn .25s ease; }
+.cart-drawer { position: relative; z-index: 1; display: flex; width: min(480px, 100%); flex-direction: column; background: var(--ivory); box-shadow: -10px 0 35px rgba(63,69,48,.15); animation: slideIn .25s ease; }
 .drawer-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 26px 26px 20px; border-bottom: 1px solid var(--line); }
 .drawer-header h2 { margin: 6px 0 0; color: var(--burgundy); font-family: var(--serif); font-size: 2.05rem; font-weight: 500; line-height: .9; }
 .cart-items { flex: 1; overflow-y: auto; padding: 6px 26px; }
@@ -607,7 +607,7 @@ img { display: block; max-width: 100%; }
   .header-inner > .site-logo .site-logo-img { height: 42px; width: 42px; }
   .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
   .header-inner > .site-logo .wordmark small { font-size: 0.44rem; }
-  .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 2px; padding: 12px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(73,52,63,.15); transform: translateX(-105%); transition: transform .25s ease; }
+  .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 2px; padding: 12px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(63,69,48,.15); transform: translateX(-105%); transition: transform .25s ease; }
   .main-nav { overflow-y: auto; overscroll-behavior: contain; }
   .main-nav.is-open { transform: translateX(0); }
   body.rtl .main-nav, .rtl .main-nav { left: auto; right: 0; transform: translateX(105%); }
@@ -626,7 +626,7 @@ img { display: block; max-width: 100%; }
   .header-inner > .site-logo .site-logo-img { height: 42px; width: 42px; }
   .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
   .header-inner > .site-logo .wordmark small { font-size: 0.44rem; }
-  .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 6px; padding: 22px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(73,52,63,.15); transform: translateX(-105%); transition: transform .25s ease; }
+  .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 6px; padding: 22px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(63,69,48,.15); transform: translateX(-105%); transition: transform .25s ease; }
   .main-nav.is-open { transform: translateX(0); }
   body.rtl .main-nav, .rtl .main-nav { left: auto; right: 0; transform: translateX(105%); }
   body.rtl .main-nav.is-open, .rtl .main-nav.is-open { transform: translateX(0); }
@@ -1927,7 +1927,7 @@ a { text-underline-offset: 3px; }
 /* Impeccable checkpoint: home refinement */
 .atelier-intro, .atelier-owner-note { text-wrap: pretty; }
 .atelier-section-heading h2, .atelier-custom-callout h2 { text-wrap: balance; }
-.atelier-feature { box-shadow: 24px 32px 64px -32px rgba(68, 35, 51, 0.5); }
+.atelier-feature { box-shadow: 24px 32px 64px -32px rgba(63, 69, 48, 0.5); }
 .atelier-feature-image img { transition: transform .5s cubic-bezier(0.16, 1, 0.3, 1); }
 .atelier-feature-image:hover img { transform: scale(1.03); }
 .atelier-piece { transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .3s ease; }
@@ -1952,3 +1952,21 @@ a { text-underline-offset: 3px; }
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
 }
+
+/* Reference-led direction preview: calm cream/sand/olive surfaces */
+.announcement-bar { background: var(--rose); color: var(--ink); }
+.announcement-bar a { color: var(--plum); }
+.atelier-opening { grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr); }
+.atelier-feature { padding: 0; background: transparent; color: var(--ink); box-shadow: none; }
+.atelier-feature-image { box-shadow: 22px 30px 60px -34px rgba(63, 69, 48, 0.55); }
+.atelier-feature-caption > div > span { color: var(--gold); }
+.atelier-feature-caption h2 { color: var(--ink); }
+.atelier-feature-caption p { color: var(--muted); }
+.site-footer { background: var(--rose); color: var(--ink); }
+.footer-brand p { color: var(--muted); }
+.social-links a, .footer-column a { color: var(--muted); }
+.social-links a:hover, .footer-column a:hover { color: var(--plum); }
+.wordmark-light { color: var(--burgundy); }
+.footer-bottom { border-top-color: var(--line); color: var(--muted); }
+.footer-bottom a { color: var(--muted); }
+.atelier-custom-callout { background: var(--plum); }
