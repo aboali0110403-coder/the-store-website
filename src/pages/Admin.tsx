@@ -84,6 +84,12 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [readStates, setReadStates] = useState<Record<string, 'loading' | 'loaded' | 'failed'>>({});
+
+  // Lets CSS slim the storefront chrome on the admin route (mobile)
+  useEffect(() => {
+    document.body.classList.add('admin-route');
+    return () => document.body.classList.remove('admin-route');
+  }, []);
   const [readFailures, setReadFailures] = useState<string[]>([]);
 
   // Data states
@@ -787,6 +793,34 @@ export default function Admin() {
         </div>
 
         <div className="admin-workbench">
+        {/* Mobile section picker (shown <=850px; the tab row/sidebar stays for larger screens) */}
+        <div className="mero-tab-select-row">
+          <select
+            className="mero-tab-select"
+            value={activeTab}
+            aria-label={isAr ? 'أقسام الإدارة' : 'Admin sections'}
+            onChange={(event) => setActiveTab(event.target.value as Tab)}
+          >
+            <option value="overview">{isAr ? 'نظرة عامة' : 'Overview'}</option>
+            <option value="products">{isAr ? 'المنتجات' : 'Products'} ({readStates.products === 'loaded' ? products.length : '—'})</option>
+            <option value="categories">{isAr ? 'التصنيفات' : 'Categories'} ({readStates.categories === 'loaded' ? adminCategories.length : '—'})</option>
+            <option value="gallery">{isAr ? 'معرض الصور' : 'Product Gallery'}</option>
+            <option value="variants">{isAr ? 'المقاسات والمخزون' : 'Variants & Stock'}</option>
+            <option value="shipping">{isAr ? 'الشحن' : 'Shipping'} ({readStates.shipping === 'loaded' ? shippingRates.length : '—'})</option>
+            <option value="coupons">{isAr ? 'الكوبونات' : 'Coupons'} ({readStates.coupons === 'loaded' ? coupons.length : '—'})</option>
+            <option value="orders">{isAr ? 'الطلبات' : 'Orders'} ({readStates.orders === 'loaded' ? orders.length : '—'})</option>
+            <option value="custom_requests">{isAr ? 'طلبات التصميم' : 'Custom requests'} ({readStates.custom_requests === 'loaded' ? customRequests.length : '—'})</option>
+          </select>
+          <button
+            type="button"
+            className="mero-refresh mero-refresh-mobile"
+            onClick={loadDashboardData}
+            title={isAr ? 'تحديث من المتجر' : 'Refresh operational records'}
+          >
+            <RefreshCw size={14} />
+            {isAr ? 'تحديث' : 'Refresh'}
+          </button>
+        </div>
         {/* Operational navigation */}
         <nav className="mero-tabs" aria-label={isAr ? 'أقسام الإدارة' : 'Admin sections'}>
           <button type="button" className={activeTab === 'overview' ? 'active' : ''} aria-current={activeTab === 'overview' ? 'page' : undefined} onClick={() => setActiveTab('overview')}>

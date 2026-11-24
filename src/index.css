@@ -1777,3 +1777,22 @@ body.rtl .guide-grid,
   .admin-overview-row strong { font-size: 1.5rem; color: var(--burgundy); }
   .admin-overview-row svg { display: none; }
 }
+
+/* Admin mobile-first pass 2: compact workbench chrome + section picker */
+.mero-tab-select-row { display: none; }
+@media (max-width: 850px) {
+  body.admin-route .announcement-bar { display: none; }
+  body.admin-route .header-inner { min-height: 56px; }
+  .admin-page { padding-top: 20px; padding-bottom: 70px; min-height: 60vh; }
+  .admin-topbar { align-items: center; gap: 10px; padding-bottom: 12px; margin-bottom: 2px; }
+  .admin-topbar .admin-logo-img { height: 34px; width: 34px; }
+  .admin-topbar h1 { font-size: 1.5rem; letter-spacing: -.02em; }
+  .admin-topbar .eyebrow { font-size: .66rem; }
+  .admin-topbar .admin-status { font-size: .78rem; }
+  .admin-workbench { gap: 12px; margin-top: 12px; }
+  .admin-workbench > .mero-tabs { display: none; }
+  .mero-tab-select-row { display: flex; gap: 10px; align-items: stretch; margin-bottom: 4px; }
+  .mero-tab-select { flex: 1; min-height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); color: var(--ink); font-size: 1rem; font-weight: 600; }
+  .mero-refresh-mobile { display: inline-flex; align-items: center; gap: 6px; min-height: 46px; margin: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); font-size: .9rem; }
+  .admin-content > section { margin-top: 10px; }
+}
