@@ -326,10 +326,10 @@ export default function Shop() {
                               isSoldOut
                                 ? 'text-[#a34d55] font-semibold'
                                 : product.production === 'ready'
-                                ? 'text-[#567c4b]'
+                                ? 'text-[#3f6a35]'
                                 : product.production === 'limited'
-                                ? 'text-[#806f77] font-medium'
-                                : 'text-[#c4a46d]'
+                                ? 'text-[#6b5a62] font-medium'
+                                : 'text-[#7a5f1f]'
                             }`}
                           >
                             {isSoldOut
