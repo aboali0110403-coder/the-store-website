@@ -13,7 +13,7 @@ const ROUTES: Array<[RegExp, Meta]> = [
   [/^\/checkout\/?$/, { en: 'Checkout', ar: 'إتمام الطلب', noindex: true }],
   [/^\/custom-design\/?$/, { en: 'Custom Design', ar: 'تصميم خاص' }],
   [/^\/our-story\/?$/, { en: 'Our Story', ar: 'قصتنا' }],
-  [/^\/policies\/.+/, { en: 'Policies', ar: 'السياسات' }],
+  [/^\/policies\/(shipping|returns|terms|privacy)\/?$/, { en: 'Policies', ar: 'السياسات' }],
   [/^\/track(-order)?\/?$/, { en: 'Track Your Order', ar: 'تتبع طلبك', noindex: true }],
   [/^\/admin/, { en: 'Store Admin', ar: 'إدارة المتجر', noindex: true }],
 ];

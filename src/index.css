@@ -2199,6 +2199,7 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .site-footer .footer-column a,
 .site-footer .footer-bottom,
 .site-footer .footer-bottom a { color: #5a5646; }
-.site-footer .footer-label { color: #4f5538; }
+.footer-label { color: #4f5538; }
+.announcement-dot { color: #5a5646; }
 .site-footer .social-links a:hover,
 .site-footer .footer-column a:hover { color: var(--burgundy); }
