@@ -2203,3 +2203,12 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .announcement-dot { color: #5a5646; }
 .site-footer .social-links a:hover,
 .site-footer .footer-column a:hover { color: var(--burgundy); }
+
+/* Target size: interactive elements measured under 24px get a larger hit area without changing the design */
+.add-mini { flex-shrink: 0; min-width: 34px; }
+.social-links { gap: 4px; }
+.social-links a { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; }
+.footer-column { gap: 4px; }
+.footer-column a { display: inline-flex; align-items: center; min-height: 32px; }
+.text-link { min-height: 32px; }
+.announcement-track-link { display: inline-flex; align-items: center; min-height: 28px; }
