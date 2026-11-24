@@ -2014,3 +2014,14 @@ a { text-underline-offset: 3px; }
   .atelier-category-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 0; padding: 0; overflow: visible; }
   .atelier-category-card { flex: none; max-width: none; width: 100%; }
 }
+
+/* === Reference-led Shop structure: centered editorial intro, taller portrait cards === */
+.page-intro-inner { flex-direction: column; align-items: center; text-align: center; gap: 18px; }
+.page-intro-inner > * { max-width: 640px; }
+.page-intro { padding: 64px 0 52px; }
+.page-intro .eyebrow { justify-content: center; }
+.page-intro-note { display: inline-block; }
+.product-image-wrap { aspect-ratio: 4 / 5; }
+.product-grid { gap: 40px 28px; }
+@media (max-width: 850px) { .product-grid { gap: 22px 14px; } .page-intro { padding: 46px 0 38px; } }
+@media (max-width: 560px) { .product-grid { gap: 18px 10px; } }
