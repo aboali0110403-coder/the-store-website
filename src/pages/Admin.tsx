@@ -809,7 +809,7 @@ export default function Admin() {
           <div className="flex items-center gap-3">
             <img src="/mero-logo.png" alt="Mero Boutique" className="admin-logo-img" />
             <div>
-              <span className="eyebrow">MERO / OWNER WORKBENCH</span>
+              <span className="eyebrow">{isAr ? 'ميرو / لوحة المالك' : 'MERO / OWNER WORKBENCH'}</span>
               <h1>{isAr ? 'مساحة عمل المشغل' : 'Atelier Workbench'}</h1>
             </div>
           </div>
