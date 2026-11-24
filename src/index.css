@@ -1880,3 +1880,27 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
   .admin-mini-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .admin-dash-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Reference-led treatment across all admin sections (cards, pills, soft panels) */
+.admin-shell .mero-records article.mero-record { border-top: 0; margin-top: 10px; padding: 14px 16px; border-radius: 12px; background: #faf6ef; transition: background .15s ease; }
+.admin-shell .mero-records article.mero-record:first-of-type { margin-top: 4px; }
+.admin-shell .mero-records article.mero-record:hover { background: #f4ede1; }
+.admin-shell .mero-record input, .admin-shell .mero-record select, .admin-shell .mero-record textarea { border-radius: 10px; border-color: #e3d9ca; min-height: 38px; }
+.admin-shell .mero-record button { border-radius: 10px; }
+.admin-shell .mero-records > div input, .admin-shell .mero-records > div select { border-radius: 10px; border-color: #e3d9ca; min-height: 38px; padding: 6px 12px; }
+.admin-shell .admin-soft-panel { border: 0 !important; border-radius: 10px; box-shadow: inset 0 0 0 1px #ece2d2; }
+.admin-shell .mero-editor form[class*="border"] { border: 0 !important; border-radius: 12px; background: #faf6ef !important; padding: 18px !important; }
+.admin-shell .mero-editor img, .admin-shell .mero-records img { border-radius: 10px; }
+.admin-shell .admin-read-alert, .admin-shell .admin-pending-note { border-radius: 12px; }
+.admin-shell .outline-button { border-radius: 10px; }
+.admin-shell .admin-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.admin-shell .mero-row-actions .mero-text-button { border: 1px solid #e3d9ca; border-radius: 10px; padding: 6px 12px; background: #fff; }
+.admin-shell .mero-row-actions .mero-text-button.danger { border-color: #ecc8c8; color: #b91c1c; }
+.admin-shell .mero-editor [class*="p-3 border bg-white"] { border: 0; border-radius: 12px; background: #faf6ef; }
+.admin-shell .mero-editor [class*="border bg-white p-4"] { border-radius: 14px; border-color: #eee5d6; box-shadow: 0 8px 22px rgba(68,35,51,.05); }
+.admin-shell .mero-editor [class*="border bg-white"] button { border-radius: 10px; }
+.admin-shell .mero-editor .mero-text-button { border: 1px solid #e3d9ca; border-radius: 10px; padding: 6px 12px; background: #fff; }
+.admin-shell .mero-editor .mero-text-button.danger { border-color: #ecc8c8; color: #b91c1c; }
+.admin-shell .solid-button { border-radius: 10px; }
+.admin-shell .mero-editor [class*="border bg-white p-4"] > [class*="justify-between"] { flex-direction: column; align-items: stretch; gap: 8px; }
+.admin-shell .mero-editor [class*="border bg-white p-4"] > [class*="justify-between"] .solid-button { width: 100%; justify-content: center; white-space: normal; text-align: center; line-height: 1.3; }

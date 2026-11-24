@@ -72,6 +72,16 @@ const getAdminResourceLabel = (key: string, isAr: boolean) => {
 };
 
 const ORDER_STATUSES = ['pending', 'confirmed', 'in_production', 'ready_to_ship', 'shipped', 'delivered', 'cancelled'] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#b45309', confirmed: '#1d4ed8', in_production: '#7c3aed',
+  ready_to_ship: '#0f766e', shipped: '#4d7c0f', delivered: '#15803d', cancelled: '#b91c1c',
+};
+
+const REQUEST_COLORS: Record<string, string> = {
+  new: '#b45309', contacted: '#1d4ed8', quoted: '#7c3aed', deposit_paid: '#0f766e',
+  in_progress: '#4d7c0f', completed: '#15803d', cancelled: '#b91c1c',
+};
 const ORDER_STATUS_LABELS_EN: Record<string, string> = {
   pending: 'Pending', confirmed: 'Confirmed', in_production: 'In Production',
   ready_to_ship: 'Ready to Ship', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
@@ -962,10 +972,6 @@ export default function Admin() {
               const nonCancelled = orders.filter((o) => o.status !== 'cancelled');
               const revenue = nonCancelled.reduce((sum, o) => sum + (o.total_egp ?? o.subtotal_egp ?? 0), 0);
               const pendingCount = orders.filter((o) => o.status === 'pending').length;
-              const STATUS_COLORS: Record<string, string> = {
-                pending: '#b45309', confirmed: '#1d4ed8', in_production: '#7c3aed',
-                ready_to_ship: '#0f766e', shipped: '#4d7c0f', delivered: '#15803d', cancelled: '#b91c1c',
-              };
               const statusCounts = ORDER_STATUSES.map((s) => ({ status: s, count: orders.filter((o) => o.status === s).length }));
               const totalOrders = orders.length;
               let acc = 0;
@@ -1479,9 +1485,12 @@ export default function Admin() {
                         {p.name_en} / {p.name_ar}
                       </strong>
                       <small>
-                        Slug: {p.slug} · {p.price_egp} EGP · {p.production_type} · Stock: {p.stock} ·{' '}
-                        {p.is_published ? 'Published' : 'Draft'}
+                        Slug: {p.slug} · {p.price_egp} EGP · Stock: {p.stock}
                       </small>
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={p.is_published ? { color: '#15803d', background: '#15803d1f' } : { color: '#6b5b62', background: '#6b5b621f' }}>{p.is_published ? (isAr ? 'منشور' : 'Published') : (isAr ? 'مسودة' : 'Draft')}</span>
+                        <span className="admin-pill" style={p.production_type === 'made_to_order' ? { color: '#7c3aed', background: '#7c3aed1f' } : { color: '#8a6d3b', background: '#8a6d3b1f' }}>{p.production_type === 'made_to_order' ? (isAr ? 'يُصنع عند الطلب' : 'Made to order') : (isAr ? 'جاهز' : 'Ready')}</span>
+                      </span>
                     </div>
                     <div className="mero-row-actions">
                       <button
@@ -2366,6 +2375,9 @@ export default function Admin() {
                       </small>
                       <small>Method: {o.payment_method} · Date: {new Date(o.created_at).toLocaleString()}</small>
                       {o.notes && <small className="text-[#947381]">Notes: {o.notes}</small>}
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={{ color: STATUS_COLORS[o.status] || '#6b5b62', background: `${STATUS_COLORS[o.status] || '#6b5b62'}1f` }}>{orderStatusLabel(o.status, isAr)}</span>
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -2419,7 +2431,7 @@ export default function Admin() {
 
                   {/* Line items if available */}
                   {o.items && o.items.length > 0 && (
-                    <div className="w-full bg-[#fffaf8] p-2 border text-xs">
+                    <div className="admin-soft-panel w-full bg-[#fffaf8] p-2 border text-xs">
                       <span className="font-semibold block mb-1">Items ({o.items.length}):</span>
                       {o.items.map((it: any) => (
                         <div key={it.id} className="flex justify-between py-0.5">
@@ -2434,7 +2446,7 @@ export default function Admin() {
 
                   {/* Status History Audit Log */}
                   {o.status_history && o.status_history.length > 0 && (
-                    <div className="w-full bg-white p-2 border text-xs">
+                    <div className="admin-soft-panel w-full bg-white p-2 border text-xs">
                       <span className="font-semibold block text-[#49343f] mb-1">
                         {isAr ? 'سجل الحالات والملاحظات:' : 'Status History Log:'}
                       </span>
@@ -2491,6 +2503,9 @@ export default function Admin() {
                         Budget: {r.target_budget_egp ? `${r.target_budget_egp} EGP` : 'Not specified'} · Deposit Rate: {r.deposit_rate}%
                       </small>
                       <small className="text-[#3e3037] mt-1">{r.description}</small>
+                      <span className="admin-pill-row">
+                        <span className="admin-pill" style={{ color: REQUEST_COLORS[r.status] || '#6b5b62', background: `${REQUEST_COLORS[r.status] || '#6b5b62'}1f` }}>{r.status.replace(/_/g, ' ')}</span>
+                      </span>
                     </div>
 
                     <select
