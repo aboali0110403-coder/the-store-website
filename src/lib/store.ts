@@ -25,7 +25,7 @@ export interface Product {
   slug: string;
   name: string;
   nameAr: string;
-  category: 'Dresses' | 'Abayas' | 'Kaftans' | 'Tops' | 'Sets' | 'Exclusive Pieces';
+  category: string;
   categoryAr: string;
   price: number;
   compareAt?: number;

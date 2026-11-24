@@ -14,6 +14,19 @@ import {
 } from './store';
 import { evaluateCoupon, checkGuestRateLimit } from './commerceLogic';
 
+export type CatalogReadStatus = 'loading' | 'live' | 'empty' | 'fallback' | 'unavailable';
+
+let catalogReadStatus: CatalogReadStatus = 'loading';
+let categoriesReadStatus: CatalogReadStatus = 'loading';
+
+export function getCatalogReadStatus(): CatalogReadStatus {
+  return catalogReadStatus;
+}
+
+export function getCategoriesReadStatus(): CatalogReadStatus {
+  return categoriesReadStatus;
+}
+
 const getDevelopmentCatalogFallback = (): Product[] =>
   import.meta.env.DEV ? initialArtisanProducts : [];
 
@@ -26,15 +39,6 @@ const getDevelopmentProductFallback = (slug: string): Product | null =>
  * Maps raw database product row into frontend Product interface
  */
 function mapProductRow(row: any): Product {
-  const categoryMap: Record<string, Product['category']> = {
-    Dresses: 'Dresses',
-    Abayas: 'Abayas',
-    Kaftans: 'Kaftans',
-    Tops: 'Tops',
-    Sets: 'Sets',
-    'Exclusive Pieces': 'Exclusive Pieces',
-  };
-
   const images: ProductGalleryImage[] = Array.isArray(row.product_images)
     ? row.product_images.map((img: any) => ({
         id: img.id,
@@ -63,13 +67,12 @@ function mapProductRow(row: any): Product {
     slug: row.slug,
     name: row.name_en,
     nameAr: row.name_ar,
-    category: categoryMap[row.category] ?? 'Exclusive Pieces',
-    categoryAr: row.category_ar,
+    category: row.category || '',
+    categoryAr: row.category_ar || '',
     price: Number(row.price_egp),
     compareAt: row.compare_at_egp == null ? undefined : Number(row.compare_at_egp),
-    image: row.image_url || '/products/embroidered-dress.svg',
+    image: row.image_url || '',
     alt: row.image_alt || row.name_en,
-    badge: row.is_featured ? 'Exclusive' : undefined,
     description: row.description_en || '',
     descriptionAr: row.description_ar || '',
     fabric: row.fabric_en || '',
@@ -95,6 +98,7 @@ function mapProductRow(row: any): Product {
  * Fetch published catalog with product_images and product_variants
  */
 export async function fetchCatalog(): Promise<Product[]> {
+  catalogReadStatus = 'loading';
   try {
     const { data, error } = await supabase
       .from('products')
@@ -105,18 +109,23 @@ export async function fetchCatalog(): Promise<Product[]> {
 
     if (error) {
       console.warn('Supabase products fetch note:', error.message);
-      return getDevelopmentCatalogFallback();
+      const fallback = getDevelopmentCatalogFallback();
+      catalogReadStatus = fallback.length > 0 ? 'fallback' : 'unavailable';
+      return fallback;
     }
 
     if (!data || data.length === 0) {
-      // Curated fixtures are for Vite development only, never production.
-      return getDevelopmentCatalogFallback();
+      catalogReadStatus = 'empty';
+      return [];
     }
 
+    catalogReadStatus = 'live';
     return data.map(mapProductRow);
   } catch (err) {
     console.error('Catalog fetch error:', err);
-    return getDevelopmentCatalogFallback();
+    const fallback = getDevelopmentCatalogFallback();
+    catalogReadStatus = fallback.length > 0 ? 'fallback' : 'unavailable';
+    return fallback;
   }
 }
 
@@ -525,13 +534,9 @@ export async function adminDeleteShippingRate(id: string): Promise<void> {
 
 // Coupon Management
 export async function adminGetCoupons(): Promise<Coupon[]> {
-  try {
-    const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-  } catch {
-    return initialCoupons;
-  }
+  const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 export async function adminUpsertCoupon(coupon: {
@@ -580,6 +585,7 @@ const CATEGORIES_CACHE_KEY = 'mero_cached_categories';
  * Fetch published categories for homepage and navigation
  */
 export async function fetchCategories(): Promise<CategoryItem[]> {
+  categoriesReadStatus = 'loading';
   try {
     const { data, error } = await supabase
       .from('categories')
@@ -603,61 +609,60 @@ export async function fetchCategories(): Promise<CategoryItem[]> {
       try {
         localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(mapped));
       } catch {}
+      categoriesReadStatus = 'live';
       return mapped;
+    }
+    if (!error && data && data.length === 0) {
+      categoriesReadStatus = 'empty';
+      return [];
     }
   } catch (err) {
     console.warn('Categories query note:', err);
   }
 
-  // Check local cache if admin edited offline or before remote table migration
-  try {
-    const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  if (import.meta.env.DEV) {
+    // Development-only fixtures are clearly reported to the UI as fallback data.
+    try {
+      const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          categoriesReadStatus = 'fallback';
+          return parsed;
+        }
+      }
+    } catch {}
+    if (initialCategories.length > 0) {
+      categoriesReadStatus = 'fallback';
+      return initialCategories;
     }
-  } catch {}
+  }
 
-  return initialCategories;
+  categoriesReadStatus = 'unavailable';
+  return [];
 }
 
 /**
  * Admin: retrieve all categories (including unpublished)
  */
 export async function adminGetCategories(): Promise<CategoryItem[]> {
-  try {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      return data.map((row: any) => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name_en,
-        nameAr: row.name_ar,
-        filter: row.filter,
-        image: row.image_url,
-        description: row.description_en || '',
-        descriptionAr: row.description_ar || '',
-        sort_order: row.sort_order ?? 0,
-        is_published: row.is_published !== false,
-      }));
-    }
-  } catch (err) {
-    console.warn('Admin categories query note:', err);
-  }
-
-  try {
-    const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {}
-
-  return initialCategories;
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name_en,
+    nameAr: row.name_ar,
+    filter: row.filter,
+    image: row.image_url,
+    description: row.description_en || '',
+    descriptionAr: row.description_ar || '',
+    sort_order: row.sort_order ?? 0,
+    is_published: row.is_published !== false,
+  }));
 }
 
 /**
