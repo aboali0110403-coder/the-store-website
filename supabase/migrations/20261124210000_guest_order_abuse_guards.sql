@@ -2,18 +2,18 @@
 -- Pricing, shipping, coupon and stock logic below are copied unchanged from the live definitions.
 -- Adds: field length caps, reference-image validation, and rolling-window request limits.
 -- payment_method needs no change: orders_payment_method_check already restricts the stored value.
--- Limits are per phone / per existing order number (reliable keys) plus per client IP (best effort: the
--- header may be absent or spoofable; an absent header is skipped, never shared as one key). There is
--- deliberately no global ceiling: it would let an attacker block every customer.
+-- Limits (owner-approved 22:17): 5 orders per phone per hour, 5 custom-design requests per phone per day,
+-- 20 lookups per existing order number per 10 minutes. There are deliberately NO IP limits (shared mobile
+-- networks, untrusted headers) and NO global ceiling (it would let an attacker block every customer).
 -- Known tradeoffs: someone who knows a customer's phone can use up that phone's order allowance for the hour;
 -- someone who knows an order number can use up its lookup allowance for 10 minutes.
 -- Locks: guard_guest_request takes one advisory transaction lock per key, always in the order
--- idempotency key, phone, IP inside one function, and a transaction calls only one public function.
+-- a single key per call (no multi-key ordering exists), and a transaction calls only one public function.
 -- Order and custom-request guards sit after input validation: a request that fails validation raises an
 -- exception and rolls back its own log row (it also creates no order). lookup_public_order returns NULL for
 -- a wrong phone instead of raising, so failed lookups of an existing order ARE logged and counted.
 -- Rollback: re-apply the previous definitions of the three functions (20261124092007 and earlier
--- migrations) and, if wanted, drop public.guard_guest_request / guest_client_ip / guest_request_log.
+-- migrations) and, if wanted, drop public.guard_guest_request / guest_request_log.
 
 create table if not exists public.guest_request_log (
   id bigint generated always as identity primary key,
@@ -25,22 +25,6 @@ create index if not exists guest_request_log_lookup_idx on public.guest_request_
 create index if not exists guest_request_log_created_idx on public.guest_request_log (created_at);
 alter table public.guest_request_log enable row level security;
 revoke all on public.guest_request_log from public, anon, authenticated;
-
-create or replace function public.guest_client_ip()
-returns text
-language plpgsql
-stable
-set search_path = pg_catalog, public
-as $$
-declare h json;
-begin
-  begin
-    h := nullif(current_setting('request.headers', true), '')::json;
-  exception when others then
-    return null;
-  end;
-  return nullif(left(trim(coalesce(h->>'cf-connecting-ip', h->>'x-real-ip', '')), 64), '');
-end $$;
 
 create or replace function public.guard_guest_request(p_kind text, p_key text, p_limit integer, p_window interval)
 returns void
@@ -61,8 +45,6 @@ begin
   insert into public.guest_request_log(kind, rkey) values (p_kind, p_key);
 end $$;
 revoke all on function public.guard_guest_request(text, text, integer, interval) from public, anon, authenticated;
-revoke all on function public.guest_client_ip() from public;
-grant execute on function public.guest_client_ip() to anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.submit_store_order(p_customer_name text, p_phone text, p_email text DEFAULT NULL::text, p_governorate text DEFAULT NULL::text, p_city_area text DEFAULT NULL::text, p_address text DEFAULT NULL::text, p_notes text DEFAULT NULL::text, p_payment_method text DEFAULT 'cash_on_delivery'::text, p_items jsonb DEFAULT '[]'::jsonb, p_idempotency_key text DEFAULT NULL::text)
  RETURNS TABLE(order_id uuid, order_number text, subtotal_egp numeric, shipping_egp numeric, total_egp numeric)
@@ -111,7 +93,6 @@ BEGIN
 
   -- Abuse guards (new orders only: idempotent replays returned above).
   PERFORM public.guard_guest_request('order_phone', regexp_replace(trim(p_phone), '\D', '', 'g'), 5, interval '1 hour');
-  PERFORM public.guard_guest_request('order_ip', public.guest_client_ip(), 15, interval '1 hour');
 
   IF p_governorate IS NULL OR length(trim(p_governorate)) = 0 THEN
     RAISE EXCEPTION 'A governorate is required to calculate shipping.';
@@ -254,7 +235,6 @@ BEGIN
    RAISE EXCEPTION 'Invalid reference image.';
  END IF;
  PERFORM public.guard_guest_request('design_phone', regexp_replace(trim(p_phone),'\D','','g'), 5, interval '1 day');
- PERFORM public.guard_guest_request('design_ip', public.guest_client_ip(), 15, interval '1 day');
  INSERT INTO public.custom_design_requests(id,request_number,customer_name,phone,email,garment_type,preferred_fabric,preferred_colors,embroidery_style,size_details,description,reference_image_urls,target_budget_egp,needed_by,status)
  VALUES(rid,rnum,trim(p_customer_name),trim(p_phone),nullif(trim(coalesce(p_email,'')),''),trim(p_garment_type),p_preferred_fabric,p_preferred_colors,p_embroidery_style,p_size_details,trim(p_description),coalesce(p_reference_image_urls,'{}'::text[]),p_target_budget_egp,p_needed_by,'new');
  RETURN QUERY SELECT rid,rnum,'new'::text;
@@ -283,7 +263,6 @@ BEGIN
 
   -- Throttle only lookups of an existing order (unknown numbers write nothing, so random guessing cannot grow the log).
   PERFORM public.guard_guest_request('lookup_order', upper(o.order_number), 20, interval '10 minutes');
-  PERFORM public.guard_guest_request('lookup_ip', public.guest_client_ip(), 100, interval '10 minutes');
 
   IF public.is_admin() THEN authorized := true; END IF;
   IF NOT authorized AND p_tracking_token IS NOT NULL AND trim(p_tracking_token) <> ''
