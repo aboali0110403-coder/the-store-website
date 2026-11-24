@@ -2191,3 +2191,14 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
   .admin-shell [class*="bg-[#fffaf8]"] [class*="flex items-center justify-between"] > * { min-width: 0; }
   .admin-shell [class*="bg-[#fffaf8]"] .outline-button { flex: 1 1 auto; justify-content: center; min-height: 46px; }
 }
+
+/* Contrast: text colours that measured below 4.5:1 (WCAG AA) on their backgrounds */
+.form-field em { color: var(--plum); }
+.site-footer .footer-brand p,
+.site-footer .social-links a,
+.site-footer .footer-column a,
+.site-footer .footer-bottom,
+.site-footer .footer-bottom a { color: #5a5646; }
+.site-footer .footer-label { color: #4f5538; }
+.site-footer .social-links a:hover,
+.site-footer .footer-column a:hover { color: var(--burgundy); }

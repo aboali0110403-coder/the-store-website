@@ -2225,10 +2225,10 @@ export default function Admin() {
                 <div key={r.id} className="flex items-center justify-between p-3 border bg-white">
                   <div>
                     <strong>{r.governorate}</strong>
-                    <span className="text-xs text-[#806f77] ml-2">
+                    <span className="text-xs text-[#806f77]" style={{ marginInlineStart: 8 }}>
                       {r.area.trim() ? (isAr ? `المنطقة: ${r.area}` : `Area: ${r.area}`) : (isAr ? 'سعر افتراضي للمحافظة' : 'Governorate default')}
                     </span>
-                    <span className="text-xs text-[#806f77] ml-2">
+                    <span className="text-xs text-[#806f77]" style={{ marginInlineStart: 8 }}>
                       {shippingRateSummary(r, isAr)}
                     </span>
                   </div>
