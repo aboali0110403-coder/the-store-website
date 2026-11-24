@@ -20,6 +20,9 @@ import {
   ChevronUp,
   Upload,
   X,
+  LayoutDashboard,
+  CircleAlert,
+  ArrowRight,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useBoutique } from '../components/SiteShell';
@@ -48,9 +51,10 @@ import {
   getSignedDesignReferenceUrl,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
-import { CategoryItem } from '../lib/store';
+import { CategoryItem, ShippingRate } from '../lib/store';
 
 type Tab =
+  | 'overview'
   | 'products'
   | 'categories'
   | 'gallery'
@@ -59,6 +63,13 @@ type Tab =
   | 'coupons'
   | 'orders'
   | 'custom_requests';
+
+const getAdminResourceLabel = (key: string, isAr: boolean) => {
+  const labels: Record<string, string> = isAr
+    ? { products: 'المنتجات', shipping: 'الشحن', coupons: 'الكوبونات', orders: 'الطلبات', custom_requests: 'طلبات التصميم', categories: 'التصنيفات' }
+    : { products: 'products', shipping: 'shipping', coupons: 'coupons', orders: 'orders', custom_requests: 'custom requests', categories: 'categories' };
+  return labels[key] || key;
+};
 
 export default function Admin() {
   const { language, refreshCatalog, refreshCategories } = useBoutique();
@@ -71,7 +82,9 @@ export default function Admin() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('products');
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [readStates, setReadStates] = useState<Record<string, 'loading' | 'loaded' | 'failed'>>({});
+  const [readFailures, setReadFailures] = useState<string[]>([]);
 
   // Data states
   const [products, setProducts] = useState<any[]>([]);
@@ -80,7 +93,7 @@ export default function Admin() {
   const [categoryUploading, setCategoryUploading] = useState(false);
   const [categoryError, setCategoryError] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [shippingRates, setShippingRates] = useState<any[]>([]);
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [customRequests, setCustomRequests] = useState<any[]>([]);
@@ -134,7 +147,10 @@ export default function Admin() {
   const [shippingForm, setShippingForm] = useState({
     id: '',
     governorate: 'Cairo',
+    area: '',
     fee_egp: '60',
+    estimated_min_days: '1',
+    estimated_max_days: '5',
     is_active: true,
   });
 
@@ -264,30 +280,40 @@ export default function Admin() {
     if (!isAuthorized) return;
     setLoading(true);
     setErrorMessage('');
-    try {
-      const [prods, rates, coups, ords, reqs, cats] = await Promise.allSettled([
-        adminGetProducts(),
-        adminGetShippingRates(),
-        adminGetCoupons(),
-        adminGetOrders(),
-        adminGetCustomDesignRequests(),
-        adminGetCategories(),
-      ]);
-
-      if (prods.status === 'fulfilled') {
-        setProducts(prods.value);
-        setSelectedProductId((prev) => prev || (prods.value[0] ? prods.value[0].id : null));
+    setReadFailures([]);
+    const resourceKeys = ['products', 'shipping', 'coupons', 'orders', 'custom_requests', 'categories'];
+    setReadStates(Object.fromEntries(resourceKeys.map((key) => [key, 'loading'])));
+    const results = await Promise.allSettled([
+      adminGetProducts(),
+      adminGetShippingRates(),
+      adminGetCoupons(),
+      adminGetOrders(),
+      adminGetCustomDesignRequests(),
+      adminGetCategories(),
+    ]);
+    const failures: string[] = [];
+    const nextStates: Record<string, 'loaded' | 'failed'> = {};
+    const applyResult = <T,>(key: string, result: PromiseSettledResult<T>, apply: (value: T) => void) => {
+      if (result.status === 'fulfilled') {
+        apply(result.value);
+        nextStates[key] = 'loaded';
+      } else {
+        failures.push(key);
+        nextStates[key] = 'failed';
       }
-      if (rates.status === 'fulfilled') setShippingRates(rates.value);
-      if (coups.status === 'fulfilled') setCoupons(coups.value);
-      if (ords.status === 'fulfilled') setOrders(ords.value);
-      if (reqs.status === 'fulfilled') setCustomRequests(reqs.value);
-      if (cats.status === 'fulfilled') setAdminCategories(cats.value || []);
-    } catch (e: any) {
-      setErrorMessage(e?.message || 'Failed to refresh data.');
-    } finally {
-      setLoading(false);
-    }
+    };
+    applyResult('products', results[0], (value: any) => {
+      setProducts(value);
+      setSelectedProductId((prev) => prev || (value[0] ? value[0].id : ''));
+    });
+    applyResult('shipping', results[1], setShippingRates);
+    applyResult('coupons', results[2], setCoupons);
+    applyResult('orders', results[3], setOrders);
+    applyResult('custom_requests', results[4], setCustomRequests);
+    applyResult('categories', results[5], (value) => setAdminCategories(value || []));
+    setReadStates(nextStates);
+    setReadFailures(failures);
+    setLoading(false);
   }, [isAuthorized]);
 
   useEffect(() => {
@@ -383,7 +409,7 @@ export default function Admin() {
   };
 
   const handleDeleteProduct = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!window.confirm(isAr ? `هل تريدين حذف المنتج «${name}»؟ لا يمكن التراجع عن هذا الإجراء.` : `Delete “${name}”? This action cannot be undone.`)) return;
     try {
       await adminDeleteProduct(id);
       await refreshCatalog();
@@ -417,6 +443,7 @@ export default function Admin() {
   };
 
   const handleDeleteGalleryImage = async (id: string) => {
+    if (!window.confirm(isAr ? 'حذف هذه الصورة من معرض المنتج؟' : 'Remove this image from the product gallery?')) return;
     try {
       await adminDeleteProductImage(id);
       await loadDashboardData();
@@ -451,6 +478,7 @@ export default function Admin() {
   };
 
   const handleDeleteVariant = async (id: string) => {
+    if (!window.confirm(isAr ? 'حذف هذا المقاس/المتغير؟' : 'Delete this product variant?')) return;
     try {
       await adminDeleteProductVariant(id);
       await loadDashboardData();
@@ -467,10 +495,16 @@ export default function Admin() {
       await adminUpsertShippingRate({
         id: shippingForm.id || undefined,
         governorate: shippingForm.governorate.trim(),
+        area: shippingForm.area.trim(),
         fee_egp: Number(shippingForm.fee_egp),
+        estimated_min_days: Number(shippingForm.estimated_min_days),
+        estimated_max_days: Number(shippingForm.estimated_max_days),
         is_active: shippingForm.is_active,
       });
-      setShippingForm({ id: '', governorate: 'Cairo', fee_egp: '60', is_active: true });
+      setShippingForm({
+        id: '', governorate: 'Cairo', area: '', fee_egp: '60',
+        estimated_min_days: '1', estimated_max_days: '5', is_active: true,
+      });
       setStatusMessage('Shipping rate updated.');
       await loadDashboardData();
     } catch (err: any) {
@@ -481,6 +515,7 @@ export default function Admin() {
   };
 
   const handleDeleteShippingRate = async (id: string) => {
+    if (!window.confirm(isAr ? 'حذف سعر الشحن هذا؟' : 'Delete this shipping rate?')) return;
     try {
       await adminDeleteShippingRate(id);
       await loadDashboardData();
@@ -522,6 +557,7 @@ export default function Admin() {
   };
 
   const handleDeleteCoupon = async (id: string) => {
+    if (!window.confirm(isAr ? 'حذف كوبون الخصم هذا؟' : 'Delete this coupon?')) return;
     try {
       await adminDeleteCoupon(id);
       await loadDashboardData();
@@ -631,6 +667,8 @@ export default function Admin() {
 
   // Selected Product for Gallery / Variants
   const activeProduct = products.find((p) => p.id === selectedProductId);
+  const activeDataKey = activeTab === 'overview' ? null : activeTab === 'gallery' || activeTab === 'variants' ? 'products' : activeTab;
+  const activeReadState = activeDataKey ? readStates[activeDataKey] : undefined;
 
   // UNAUTHORIZED STATE
   if (!session || !isAuthorized) {
@@ -732,14 +770,14 @@ export default function Admin() {
           <div className="flex items-center gap-3">
             <img src="/mero-logo.png" alt="Mero Boutique" className="admin-logo-img" />
             <div>
-              <span className="eyebrow">MERO / CONTROL ATELIER</span>
-              <h1>{isAr ? 'لوحة تحكم ميرو بوتيك' : 'Store Administration'}</h1>
+              <span className="eyebrow">MERO / OWNER WORKBENCH</span>
+              <h1>{isAr ? 'مساحة عمل المشغل' : 'Atelier Workbench'}</h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="admin-status">
-              <span className="status-dot online" />
-              <span>{session.user.email}</span>
+              <span className={`status-dot ${readFailures.length === 0 && !loading ? 'online' : ''}`} />
+              <span>{loading ? (isAr ? 'جارٍ تحديث البيانات' : 'Refreshing records') : readFailures.length ? (isAr ? `تعذر تحميل ${readFailures.length} مصادر` : `${readFailures.length} read(s) unavailable`) : session.user.email}</span>
             </div>
             <button type="button" className="mero-text-button" onClick={handleLogout}>
               <LogOut size={14} />
@@ -748,26 +786,31 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav className="mero-tabs">
+        <div className="admin-workbench">
+        {/* Operational navigation */}
+        <nav className="mero-tabs" aria-label={isAr ? 'أقسام الإدارة' : 'Admin sections'}>
+          <button type="button" className={activeTab === 'overview' ? 'active' : ''} aria-current={activeTab === 'overview' ? 'page' : undefined} onClick={() => setActiveTab('overview')}>
+            <LayoutDashboard size={16} /> {isAr ? 'نظرة عامة' : 'Overview'}
+          </button>
           <button
+            type="button"
             className={activeTab === 'products' ? 'active' : ''}
+            aria-current={activeTab === 'products' ? 'page' : undefined}
             onClick={() => setActiveTab('products')}
           >
-            <Package size={15} />
-            {isAr ? 'المنتجات' : 'Products'} ({products.length})
+            <Package size={16} /> {isAr ? 'المنتجات' : 'Products'} <span className="admin-nav-count">{readStates.products === 'loaded' ? products.length : '—'}</span>
           </button>
 
           <button
-            className={activeTab === 'categories' ? 'active' : ''}
+            type="button" className={activeTab === 'categories' ? 'active' : ''} aria-current={activeTab === 'categories' ? 'page' : undefined}
             onClick={() => setActiveTab('categories')}
           >
             <Layers size={15} />
-            {isAr ? 'تصنيفات الرئيسية' : 'Categories'} ({adminCategories.length})
+            {isAr ? 'التصنيفات' : 'Categories'} <span className="admin-nav-count">{readStates.categories === 'loaded' ? adminCategories.length : '—'}</span>
           </button>
 
           <button
-            className={activeTab === 'gallery' ? 'active' : ''}
+            type="button" className={activeTab === 'gallery' ? 'active' : ''} aria-current={activeTab === 'gallery' ? 'page' : undefined}
             onClick={() => setActiveTab('gallery')}
           >
             <ImageIcon size={15} />
@@ -775,7 +818,7 @@ export default function Admin() {
           </button>
 
           <button
-            className={activeTab === 'variants' ? 'active' : ''}
+            type="button" className={activeTab === 'variants' ? 'active' : ''} aria-current={activeTab === 'variants' ? 'page' : undefined}
             onClick={() => setActiveTab('variants')}
           >
             <Layers size={15} />
@@ -783,50 +826,98 @@ export default function Admin() {
           </button>
 
           <button
-            className={activeTab === 'shipping' ? 'active' : ''}
+            type="button" className={activeTab === 'shipping' ? 'active' : ''} aria-current={activeTab === 'shipping' ? 'page' : undefined}
             onClick={() => setActiveTab('shipping')}
           >
             <Truck size={15} />
-            {isAr ? 'أسعار الشحن' : 'Shipping Rates'} ({shippingRates.length})
+            {isAr ? 'الشحن' : 'Shipping'} <span className="admin-nav-count">{readStates.shipping === 'loaded' ? shippingRates.length : '—'}</span>
           </button>
 
           <button
-            className={activeTab === 'coupons' ? 'active' : ''}
+            type="button" className={activeTab === 'coupons' ? 'active' : ''} aria-current={activeTab === 'coupons' ? 'page' : undefined}
             onClick={() => setActiveTab('coupons')}
           >
             <Tag size={15} />
-            {isAr ? 'كوبونات الخصم' : 'Coupons'} ({coupons.length})
+            {isAr ? 'الكوبونات' : 'Coupons'} <span className="admin-nav-count">{readStates.coupons === 'loaded' ? coupons.length : '—'}</span>
           </button>
 
           <button
-            className={activeTab === 'orders' ? 'active' : ''}
+            type="button" className={activeTab === 'orders' ? 'active' : ''} aria-current={activeTab === 'orders' ? 'page' : undefined}
             onClick={() => setActiveTab('orders')}
           >
             <ShoppingBag size={15} />
-            {isAr ? 'الطلبات والمعاملات' : 'Orders & Payments'} ({orders.length})
+            {isAr ? 'الطلبات' : 'Orders'} <span className="admin-nav-count">{readStates.orders === 'loaded' ? orders.length : '—'}</span>
           </button>
 
           <button
-            className={activeTab === 'custom_requests' ? 'active' : ''}
+            type="button" className={activeTab === 'custom_requests' ? 'active' : ''} aria-current={activeTab === 'custom_requests' ? 'page' : undefined}
             onClick={() => setActiveTab('custom_requests')}
           >
             <Scissors size={15} />
-            {isAr ? 'التصاميم الخاصة' : 'Bespoke Requests'} ({customRequests.length})
+            {isAr ? 'طلبات التصميم' : 'Custom requests'} <span className="admin-nav-count">{readStates.custom_requests === 'loaded' ? customRequests.length : '—'}</span>
           </button>
 
           <button
             type="button"
             className="mero-refresh"
             onClick={loadDashboardData}
-            title="Refresh from Database"
+            title={isAr ? 'تحديث من المتجر' : 'Refresh operational records'}
           >
             <RefreshCw size={14} />
             {isAr ? 'تحديث' : 'Refresh'}
           </button>
         </nav>
+        <div className="admin-content">
 
-        {statusMessage && <div className="form-success">{statusMessage}</div>}
-        {errorMessage && <div className="mero-error">{errorMessage}</div>}
+        {statusMessage && <div className="form-success" role="status" aria-live="polite">{statusMessage}</div>}
+        {errorMessage && <div className="mero-error" role="alert">{errorMessage}</div>}
+        {readFailures.length > 0 && (
+          <div className="admin-read-alert" role="status" aria-live="polite">
+            <CircleAlert size={18} aria-hidden="true" />
+            <span>{isAr ? `فشل تحميل: ${readFailures.map((key) => getAdminResourceLabel(key, true)).join('، ')}. أُبقيت هذه المصادر مميزة كغير متاحة؛ لا تعتبريها بيانات فارغة.` : `Could not load: ${readFailures.map((key) => getAdminResourceLabel(key, false)).join(', ')}. Failed reads are marked unavailable, not as empty data.`}</span>
+          </div>
+        )}
+        {activeDataKey && activeReadState === 'loading' && (
+          <div className="admin-loading-state" role="status" aria-live="polite">
+            <span className="admin-skeleton-line" /><span className="admin-skeleton-line short" />
+            <span>{isAr ? 'جارٍ تحميل السجلات…' : 'Loading operational records…'}</span>
+          </div>
+        )}
+        {activeDataKey && activeReadState === 'failed' && (
+          <div className="admin-read-alert" role="alert">
+            <CircleAlert size={18} aria-hidden="true" />
+            <span>{isAr ? 'تعذر تحميل هذا القسم. البيانات المعروضة ليست نتيجة قراءة ناجحة؛ استخدمي «تحديث» للمحاولة مجددًا.' : 'This section could not be loaded. The displayed content is not a successful live read; use Refresh to try again.'}</span>
+          </div>
+        )}
+
+        {activeTab === 'overview' && (
+          <section className="admin-overview" aria-labelledby="admin-overview-title">
+            <div className="admin-content-heading">
+              <div><p className="admin-section-kicker">{isAr ? 'إدارة المشغل' : 'Owner operations'}</p><h2 id="admin-overview-title">{isAr ? 'لقطة العمل الحالية' : 'Current work, at a glance'}</h2></div>
+              <button type="button" className="mero-text-button" onClick={loadDashboardData} disabled={loading}><RefreshCw size={15} /> {isAr ? 'تحديث السجلات' : 'Refresh records'}</button>
+            </div>
+            <p className="admin-overview-note">{isAr ? 'الأعداد أدناه محسوبة من السجلات التي نجح تحميلها في هذه الجلسة فقط.' : 'Counts below are calculated only from records successfully loaded in this session.'}</p>
+            <div className="admin-overview-list">
+              {([
+                ['products', isAr ? 'المنتجات' : 'Products', products.length],
+                ['orders', isAr ? 'الطلبات' : 'Orders', orders.length],
+                ['custom_requests', isAr ? 'طلبات التصميم الخاص' : 'Custom design requests', customRequests.length],
+                ['shipping', isAr ? 'أسعار الشحن' : 'Shipping rates', shippingRates.length],
+                ['coupons', isAr ? 'الكوبونات' : 'Coupons', coupons.length],
+                ['categories', isAr ? 'التصنيفات' : 'Categories', adminCategories.length],
+              ] as const).map(([key, label, count]) => (
+                <button key={key} type="button" className="admin-overview-row" onClick={() => setActiveTab(key as Tab)}>
+                  <span>{label}</span>
+                  <strong>{readStates[key] === 'loaded' ? count : readStates[key] === 'loading' ? (isAr ? 'جارٍ التحميل' : 'Loading') : (isAr ? 'غير متاح' : 'Unavailable')}</strong>
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+            {readStates.orders === 'loaded' && orders.filter((order) => order.status === 'pending').length > 0 && (
+              <p className="admin-pending-note">{isAr ? `هناك ${orders.filter((order) => order.status === 'pending').length} طلبات بحالة قيد الانتظار.` : `${orders.filter((order) => order.status === 'pending').length} orders are pending.`}</p>
+            )}
+          </section>
+        )}
 
         {/* 1. PRODUCTS TAB */}
         {activeTab === 'products' && (
@@ -1151,7 +1242,7 @@ export default function Admin() {
             <div className="mero-records">
               <h2>{isAr ? 'كتالوج المنتجات الحالي' : 'Current Database Products'}</h2>
               {products.length === 0 ? (
-                <p className="mero-empty">{isAr ? 'لا توجد منتجات مسجلة.' : 'No products in database.'}</p>
+                <p className="mero-empty">{readStates.products === 'loaded' ? isAr ? 'لا توجد منتجات مسجلة.' : 'No products in database.' : isAr ? 'تعذر تأكيد خلو المنتجات حتى ينجح التحميل.' : 'Product availability is unknown until the source loads successfully.'}</p>
               ) : (
                 products.map((p) => (
                   <article key={p.id} className="mero-record">
@@ -1235,7 +1326,7 @@ export default function Admin() {
                     name: '',
                     nameAr: '',
                     filter: '',
-                    image: '/products/embroidered-dress.svg',
+                    image: '',
                     description: '',
                     descriptionAr: '',
                     sort_order: adminCategories.length + 1,
@@ -1279,12 +1370,8 @@ export default function Admin() {
                     {isAr ? 'صورة التصنيف الدائرية *' : 'Circular Category Image *'}
                   </span>
                   <div className="flex items-center gap-4 flex-wrap">
-                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#c4a46d] bg-white flex-shrink-0 shadow-sm">
-                      <img
-                        src={editingCategory.image || '/products/embroidered-dress.svg'}
-                        alt={editingCategory.name || 'Category'}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="category-image-preview w-20 h-20 rounded-full overflow-hidden border-2 border-[#c4a46d] bg-white flex-shrink-0 shadow-sm">
+                      {editingCategory.image ? <img src={editingCategory.image} alt={editingCategory.name || 'Category'} className="w-full h-full object-cover" /> : <span>{isAr ? 'لا توجد صورة' : 'No image set'}</span>}
                     </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1411,7 +1498,7 @@ export default function Admin() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
               {adminCategories.length === 0 ? (
                 <div className="mero-empty col-span-full">
-                  {isAr ? 'لا توجد تصنيفات مسجلة.' : 'No categories available.'}
+                  {readStates.categories === 'loaded' ? isAr ? 'لا توجد تصنيفات مسجلة.' : 'No categories available.' : isAr ? 'تعذر تأكيد وجود التصنيفات حتى ينجح التحميل.' : 'Category availability is unknown until the source loads successfully.'}
                 </div>
               ) : (
                 adminCategories.map((cat, idx) => (
@@ -1421,11 +1508,7 @@ export default function Admin() {
                   >
                     <div className="flex items-center gap-3.5 mb-3">
                       <div className="w-16 h-16 rounded-full overflow-hidden border border-[#c4a46d] bg-[#fbf1e8] flex-shrink-0">
-                        <img
-                          src={cat.image || '/products/embroidered-dress.svg'}
-                          alt={cat.name}
-                          className="w-full h-full object-cover"
-                        />
+                        {cat.image ? <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" /> : <span className="category-image-placeholder">{isAr ? 'لا توجد صورة' : 'No image'}</span>}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -1799,12 +1882,45 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
+                  <span>{isAr ? 'المنطقة (اتركيها فارغة كسعر افتراضي للمحافظة)' : 'Area (leave blank for governorate default)'}</span>
+                  <input
+                    value={shippingForm.area}
+                    onChange={(e) => setShippingForm({ ...shippingForm, area: e.target.value })}
+                    placeholder={isAr ? 'مثال: الزمالك' : 'e.g. Zamalek'}
+                  />
+                </label>
+
+                <label className="mero-field">
                   <span>Shipping Fee (EGP) *</span>
                   <input
                     type="number"
                     required
                     value={shippingForm.fee_egp}
                     onChange={(e) => setShippingForm({ ...shippingForm, fee_egp: e.target.value })}
+                  />
+                </label>
+
+                <label className="mero-field">
+                  <span>{isAr ? 'أقل مدة توصيل (أيام)' : 'Estimated minimum days'} *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={shippingForm.estimated_min_days}
+                    onChange={(e) => setShippingForm({ ...shippingForm, estimated_min_days: e.target.value })}
+                  />
+                </label>
+
+                <label className="mero-field">
+                  <span>{isAr ? 'أقصى مدة توصيل (أيام)' : 'Estimated maximum days'} *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={shippingForm.estimated_max_days}
+                    onChange={(e) => setShippingForm({ ...shippingForm, estimated_max_days: e.target.value })}
                   />
                 </label>
               </div>
@@ -1832,7 +1948,10 @@ export default function Admin() {
                   <div>
                     <strong>{r.governorate}</strong>
                     <span className="text-xs text-[#806f77] ml-2">
-                      {r.fee_egp} EGP · {r.is_active ? 'Active' : 'Inactive'}
+                      {r.area.trim() ? (isAr ? `المنطقة: ${r.area}` : `Area: ${r.area}`) : (isAr ? 'سعر افتراضي للمحافظة' : 'Governorate default')}
+                    </span>
+                    <span className="text-xs text-[#806f77] ml-2">
+                      {r.fee_egp} EGP · {r.estimated_min_days}–{r.estimated_max_days} days · {r.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -1843,7 +1962,10 @@ export default function Admin() {
                         setShippingForm({
                           id: r.id,
                           governorate: r.governorate,
+                          area: r.area,
                           fee_egp: String(r.fee_egp),
+                          estimated_min_days: String(r.estimated_min_days),
+                          estimated_max_days: String(r.estimated_max_days),
                           is_active: r.is_active,
                         });
                       }}
@@ -2017,7 +2139,7 @@ export default function Admin() {
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder={isAr ? 'ملاحظة التحديث (اختياري)...' : 'Update note (optional)...'}
+                        placeholder={isAr ? 'ملاحظة إدارية خاصة (لا تظهر للعميل)...' : 'Private admin note (not shown to customer)'}
                         value={orderStatusNotes[o.id] || ''}
                         onChange={(e) =>
                           setOrderStatusNotes({
@@ -2093,7 +2215,7 @@ export default function Admin() {
           <div className="mero-records">
             <h2>{isAr ? 'طلبات التصميم الخاص (custom_design_requests)' : 'Bespoke Custom Design Inquiries'}</h2>
             {customRequests.length === 0 ? (
-              <p className="mero-empty">{isAr ? 'لا توجد طلبات تصميم خاصة.' : 'No custom design inquiries yet.'}</p>
+              <p className="mero-empty">{readStates.custom_requests === 'loaded' ? isAr ? 'لا توجد طلبات تصميم خاصة.' : 'No custom design inquiries yet.' : isAr ? 'تعذر تأكيد خلو القائمة حتى تنجح القراءة.' : 'The list cannot be confirmed empty until the read succeeds.'}</p>
             ) : (
               customRequests.map((r) => (
                 <article key={r.id} className="mero-record flex-col items-start gap-2">
@@ -2167,6 +2289,8 @@ export default function Admin() {
             )}
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       {/* Lightbox Modal for Private Bespoke Reference Photos */}

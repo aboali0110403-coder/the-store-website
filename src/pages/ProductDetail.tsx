@@ -13,6 +13,7 @@ import {
 import { useBoutique } from '../components/SiteShell';
 import { Product, ProductGalleryImage } from '../lib/store';
 import { fetchProductBySlug } from '../lib/api';
+import { getProductSpecificationRows } from '../lib/productPresentation';
 import { formatEGP } from '../lib/commerceLogic';
 
 export default function ProductDetail() {
@@ -30,38 +31,53 @@ export default function ProductDetail() {
   const [addedNotice, setAddedNotice] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
-    let isMounted = true;
-    setLoading(true);
-
-    fetchProductBySlug(slug).then((res) => {
-      if (!isMounted) return;
-      if (res) {
-        setProduct(res);
-        setActiveImage(res.image);
-        if (res.sizes.length > 0) setSelectedSize(res.sizes[0]);
-        if (res.colors.length > 0) setSelectedColor(res.colors[0]);
-      } else {
-        const local = products.find((p) => p.slug === slug);
-        if (local) {
-          setProduct(local);
-          setActiveImage(local.image);
-          if (local.sizes.length > 0) setSelectedSize(local.sizes[0]);
-          if (local.colors.length > 0) setSelectedColor(local.colors[0]);
-        }
-      }
+    if (!slug) {
+      setProduct(null);
       setLoading(false);
-    });
+      return;
+    }
+    let isMounted = true;
+    const applyProduct = (next: Product | null) => {
+      setProduct(next);
+      if (next) {
+        setActiveImage(next.image || next.images?.find((image) => image.image_url)?.image_url || '');
+        setSelectedSize(next.sizes[0] || '');
+        setSelectedColor(next.colors[0] || '');
+      }
+    };
+
+    // Resolve details from the authoritative slug lookup only. The catalog
+    // can change while it loads and must not trigger a duplicate detail query.
+    setProduct(null);
+    setLoading(true);
+    const lookupTimeout = window.setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 8000);
+
+    fetchProductBySlug(slug)
+      .then((res) => {
+        if (!isMounted) return;
+        window.clearTimeout(lookupTimeout);
+        applyProduct(res);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        window.clearTimeout(lookupTimeout);
+        applyProduct(null);
+        setLoading(false);
+      });
 
     return () => {
       isMounted = false;
+      window.clearTimeout(lookupTimeout);
     };
-  }, [slug, products]);
+  }, [slug]);
 
   // Gallery images combined: main product image + product_images table gallery
   const allImages = useMemo(() => {
     if (!product) return [];
-    const list: string[] = [product.image];
+    const list: string[] = product.image ? [product.image] : [];
     if (product.images && product.images.length > 0) {
       product.images.forEach((img) => {
         if (img.image_url && !list.includes(img.image_url)) {
@@ -95,6 +111,11 @@ export default function ProductDetail() {
     }
     return product.stock;
   }, [product, hasConfiguredVariants, currentVariant]);
+
+  const specificationRows = useMemo(
+    () => getProductSpecificationRows(product, language),
+    [product, language]
+  );
 
   const isInventoryControlled =
     product?.production === 'ready' || product?.production === 'limited';
@@ -164,7 +185,13 @@ export default function ProductDetail() {
           <div className="product-gallery">
             <div className="gallery-main">
               {product.badge && <span className="product-badge">{product.badge}</span>}
-              <img src={activeImage || product.image} alt={product.alt} />
+              {(activeImage || product.image) ? (
+                <img src={activeImage || product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} />
+              ) : (
+                <div className="gallery-image-unavailable" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}>
+                  {isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}
+                </div>
+              )}
             </div>
 
             {allImages.length > 1 && (
@@ -377,16 +404,19 @@ export default function ProductDetail() {
 
             {/* Accordion Details */}
             <div className="detail-accordions">
-              <details open>
-                <summary>{isAr ? 'الخامة وتقنية التطريز' : 'Fabric & Embroidery Technique'}</summary>
-                <p>
-                  <strong>{isAr ? 'الخامة: ' : 'Fabric: '}</strong>
-                  {isAr ? product.fabricAr : product.fabric}
-                  <br />
-                  <strong>{isAr ? 'تقنية التطريز: ' : 'Technique: '}</strong>
-                  {isAr ? product.techniqueAr : product.technique}
-                </p>
-              </details>
+              {specificationRows.length > 0 && (
+                <details open>
+                  <summary>{isAr ? 'الخامة وتقنية التطريز' : 'Fabric & Embroidery Technique'}</summary>
+                  <p>
+                    {specificationRows.map((row) => (
+                      <span key={row.key} className="block">
+                        <strong>{row.label}: </strong>
+                        {row.value}
+                      </span>
+                    ))}
+                  </p>
+                </details>
+              )}
 
               <details>
                 <summary>{isAr ? 'إرشادات العناية والحفظ' : 'Care & Maintenance'}</summary>
@@ -427,7 +457,7 @@ export default function ProductDetail() {
                 <article key={rel.id} className="product-card">
                   <div className="product-image-wrap">
                     <Link href={`/shop/${rel.slug}`} className="product-image-link">
-                      <img src={rel.image} alt={rel.alt} />
+                        {rel.image ? <img src={rel.image} alt={rel.alt || (isAr ? rel.nameAr : rel.name)} /> : <span className="product-image-placeholder" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}>{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
                     </Link>
                   </div>
                   <div className="product-card-copy">

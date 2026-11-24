@@ -6,12 +6,12 @@ import { Product } from '../lib/store';
 import { formatEGP } from '../lib/commerceLogic';
 
 export default function Shop() {
-  const { language, products, toggleWishlist, isWishlisted, addToBag } = useBoutique();
+  const { language, products, categories: catalogCategories, toggleWishlist, isWishlisted, addToBag, catalogReadStatus, loadingCatalog } = useBoutique();
   const [location] = useLocation();
   const isAr = language === 'ar';
 
   // Read initial category from query string if available
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => new URLSearchParams(window.location.search).get('category') || 'All');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'newest'>('featured');
   const [selectedSize, setSelectedSize] = useState<string>('All');
@@ -21,14 +21,24 @@ export default function Shop() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cat = params.get('category');
-    if (cat) {
-      setSelectedCategory(cat);
-    }
+    setSelectedCategory(cat || 'All');
   }, [location]);
 
   const categories = useMemo(
-    () => ['All', 'Dresses', 'Abayas', 'Kaftans', 'Tops', 'Sets', 'Exclusive Pieces'],
-    []
+    () => {
+      const liveCategories = catalogCategories
+        .filter((category) => category.is_published !== false)
+        .map((category) => ({ filter: category.filter, name: category.name, nameAr: category.nameAr }));
+      if (liveCategories.length > 0) return liveCategories;
+      const derived = new Map<string, { filter: string; name: string; nameAr: string }>();
+      products.forEach((product) => {
+        if (!derived.has(product.category)) {
+          derived.set(product.category, { filter: product.category, name: product.category, nameAr: product.categoryAr });
+        }
+      });
+      return Array.from(derived.values());
+    },
+    [catalogCategories, products]
   );
 
   const availableSizes = useMemo(() => {
@@ -76,8 +86,8 @@ export default function Shop() {
                 : 'Explore refined Egyptian handcrafted dresses, kaftans, abayas, and coordinated sets tailored for enduring grace.'}
             </p>
           </div>
-          <span className="page-intro-note">
-            {filteredProducts.length} {isAr ? 'قطعة معروضة' : 'pieces available'}
+            <span className="page-intro-note" aria-live="polite">
+            {filteredProducts.length} {isAr ? 'قطعة في النتائج الحالية' : 'pieces in current results'}
           </span>
         </div>
       </div>
@@ -88,7 +98,9 @@ export default function Shop() {
           <div className="search-field">
             <Search size={16} />
             <input
+              id="catalog-search"
               type="text"
+              aria-label={isAr ? 'ابحثي في الكتالوج' : 'Search the catalog'}
               placeholder={isAr ? 'ابحثي عن فستان، خامة، تطريز…' : 'Search by piece, fabric, embroidery…'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -99,6 +111,8 @@ export default function Shop() {
             type="button"
             className="filter-toggle"
             onClick={() => setMobileFiltersVisible(!mobileFiltersVisible)}
+            aria-expanded={mobileFiltersVisible}
+            aria-controls="shop-filters"
           >
             <SlidersHorizontal size={14} />
             {isAr ? 'تصفية النتائج' : 'Filters'}
@@ -123,7 +137,7 @@ export default function Shop() {
 
         <div className={`shop-grid-layout ${mobileFiltersVisible ? 'filters-visible' : ''}`}>
           {/* Filters Sidebar */}
-          <aside className="filter-panel">
+          <aside id="shop-filters" className="filter-panel" aria-label={isAr ? 'خيارات تصفية الكتالوج' : 'Catalog filters'}>
             <div className="filter-panel-header">
               <span>{isAr ? 'تصفية القطع' : 'Filter Pieces'}</span>
               {(selectedCategory !== 'All' || selectedSize !== 'All' || selectedProduction !== 'All') && (
@@ -146,14 +160,14 @@ export default function Shop() {
             <div className="filter-group">
               <h3>{isAr ? 'التصنيف' : 'Category'}</h3>
               <div className="filter-options">
-                {categories.map((cat) => (
+                {[{ filter: 'All', name: isAr ? 'جميع القطع' : 'All Pieces', nameAr: 'جميع القطع' }, ...categories].map((cat) => (
                   <button
-                    key={cat}
+                    key={cat.filter}
                     type="button"
-                    className={selectedCategory === cat ? 'selected' : ''}
-                    onClick={() => setSelectedCategory(cat)}
+                    className={selectedCategory === cat.filter ? 'selected' : ''}
+                    onClick={() => setSelectedCategory(cat.filter)}
                   >
-                    {cat === 'All' ? (isAr ? 'جميع القطع' : 'All Pieces') : cat}
+                    {isAr ? cat.nameAr : cat.name}
                   </button>
                 ))}
               </div>
@@ -215,15 +229,17 @@ export default function Shop() {
           {/* Product Grid */}
           <div className="shop-results">
             {filteredProducts.length === 0 ? (
-              <div className="empty-results">
+              <div className="empty-results" role="status" aria-live="polite">
                 <Sparkles size={32} />
-                <h2>{isAr ? 'لم نعثر على قطع مطابقة' : 'No matching pieces found'}</h2>
+                <h2>{loadingCatalog ? (isAr ? 'جارٍ تحميل الكتالوج' : 'Loading the catalog') : isAr ? 'لم نعثر على قطع مطابقة' : 'No matching pieces found'}</h2>
                 <p>
-                  {isAr
-                    ? 'جربي إزالة بعض خيارات التصفية أو البحث عن كلمة أخرى.'
-                    : 'Try clearing some filters or exploring a different category.'}
+                  {loadingCatalog
+                    ? isAr ? 'يرجى الانتظار أثناء تحديث المنتجات المنشورة.' : 'Please wait while published products load.'
+                    : catalogReadStatus === 'unavailable'
+                    ? isAr ? 'تعذر تحميل الكتالوج الآن. حاولي مرة أخرى لاحقًا.' : 'The catalog could not be loaded. Please try again later.'
+                    : isAr ? 'جربي إزالة بعض خيارات التصفية أو البحث عن كلمة أخرى.' : 'Try clearing some filters or exploring a different category.'}
                 </p>
-                <button
+                {!loadingCatalog && catalogReadStatus !== 'unavailable' && <button
                   type="button"
                   className="solid-button"
                   onClick={() => {
@@ -234,7 +250,7 @@ export default function Shop() {
                   }}
                 >
                   {isAr ? 'عرض جميع القطع' : 'View All Pieces'}
-                </button>
+                </button>}
               </div>
             ) : (
               <div className="product-grid">
@@ -263,7 +279,7 @@ export default function Shop() {
                           <Heart size={16} fill={wish ? 'currentColor' : 'none'} />
                         </button>
                         <Link href={`/shop/${product.slug}`} className="product-image-link">
-                          <img src={product.image} alt={product.alt} />
+                          {product.image ? <img src={product.image} alt={product.alt || (isAr ? product.nameAr : product.name)} /> : <span className="product-image-placeholder" role="img" aria-label={isAr ? 'صورة المنتج غير متاحة' : 'Product image unavailable'}>{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
                         </Link>
                         <Link href={`/shop/${product.slug}`} className="quick-view">
                           {isAr ? 'عرض التفاصيل والمقاسات' : 'View Details & Sizes'}

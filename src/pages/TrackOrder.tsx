@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   Search,
@@ -42,6 +42,7 @@ export default function TrackOrder() {
   const [errorMessage, setErrorMessage] = useState('');
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const lookupCredentialsRef = useRef<{ phone?: string; token?: string }>({});
 
   // Load any previously placed orders from local storage
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function TrackOrder() {
       if (urlOrder) {
         setOrderQuery(urlOrder);
         if (urlPhone) setPhoneQuery(urlPhone);
-        performLookup(urlOrder, urlPhone || undefined, urlToken || undefined, false);
+        performLookup(urlOrder, urlPhone || undefined, urlToken || undefined, true);
       }
     }
   }, []);
@@ -79,7 +80,8 @@ export default function TrackOrder() {
           filter: `order_number=eq.${order.order_number}`,
         },
         () => {
-          performLookup(order.order_number, phoneQuery || undefined, order.tracking_token, false);
+          const credentials = lookupCredentialsRef.current;
+          performLookup(order.order_number, credentials.phone, credentials.token, false);
         }
       )
       .subscribe();
@@ -87,7 +89,8 @@ export default function TrackOrder() {
     // Bounded interval polling (every 30s) ensuring guest updates propagate even if realtime is gated
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
-      performLookup(order.order_number, phoneQuery || undefined, order.tracking_token, false);
+      const credentials = lookupCredentialsRef.current;
+      performLookup(order.order_number, credentials.phone, credentials.token, false);
     }, 30000);
 
     return () => {
@@ -117,6 +120,10 @@ export default function TrackOrder() {
     setSearchedNumber(validation.normalized);
 
     const phoneParam = phoneToVerify !== undefined ? phoneToVerify : phoneQuery;
+    lookupCredentialsRef.current = {
+      phone: phoneParam?.trim() || undefined,
+      token: token?.trim() || undefined,
+    };
 
     try {
       const result = await lookupPublicOrder(validation.normalized, phoneParam, token);
@@ -165,6 +172,7 @@ export default function TrackOrder() {
   const handleSelectCustomerOrder = (selectedNumber: string) => {
     setOrderQuery(selectedNumber);
     setOrder(null);
+    lookupCredentialsRef.current = {};
     setErrorMessage(
       isAr
         ? 'أدخلي رقم الهاتف المسجل لإظهار تفاصيل الطلب وحماية الخصوصية.'
@@ -254,6 +262,7 @@ export default function TrackOrder() {
                       setOrderQuery('');
                       setOrder(null);
                       setErrorMessage('');
+                      lookupCredentialsRef.current = {};
                     }}
                     className="clear-search-btn"
                     aria-label={isAr ? 'مسح' : 'Clear'}
@@ -412,7 +421,10 @@ export default function TrackOrder() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => performLookup(order.order_number, phoneQuery || undefined, undefined, false)}
+                      onClick={() => {
+                        const credentials = lookupCredentialsRef.current;
+                        performLookup(order.order_number, credentials.phone, credentials.token, false);
+                      }}
                       disabled={loading}
                       className="px-2 py-1 border border-[rgba(73,52,63,0.2)] bg-[#fffaf8] text-[#49343f] text-xs flex items-center gap-1 hover:bg-[#f5efec]"
                       title={isAr ? 'تحديث فوري للحالة من قاعدة البيانات' : 'Live refresh status from database'}

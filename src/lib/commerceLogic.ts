@@ -43,6 +43,7 @@ export interface CouponRule {
 
 export interface ShippingRateRule {
   governorate: string;
+  area: string;
   fee_egp: number;
   is_active: boolean;
 }
@@ -243,20 +244,39 @@ export function evaluateCoupon(
 }
 
 /**
- * Matches a governorate to a shipping rate.
+ * Resolves an exact normalized governorate/area rate, then an explicit
+ * governorate-default rate whose area is blank. Ambiguous matches fail closed.
  */
 export function resolveShippingRate(
   governorate: string,
+  area: string,
   rates: ShippingRateRule[]
 ): { fee: number; isConfigured: boolean } {
   if (!governorate) return { fee: 0, isConfigured: false };
 
-  const matched = rates.find(
-    (r) => r.is_active && r.governorate.trim().toLowerCase() === governorate.trim().toLowerCase()
-  );
+  const normalizedGovernorate = governorate.trim().toLowerCase();
+  const normalizedArea = area.trim().toLowerCase();
+  if (!normalizedGovernorate) return { fee: 0, isConfigured: false };
 
-  if (matched) {
-    return { fee: Number(matched.fee_egp), isConfigured: true };
+  const governorateRates = rates.filter(
+    (rate) =>
+      rate.is_active &&
+      rate.governorate.trim().toLowerCase() === normalizedGovernorate
+  );
+  const areaMatches = normalizedArea
+    ? governorateRates.filter((rate) => rate.area.trim().toLowerCase() === normalizedArea)
+    : [];
+
+  if (areaMatches.length === 1) {
+    return { fee: Number(areaMatches[0].fee_egp), isConfigured: true };
+  }
+  if (areaMatches.length > 1) {
+    return { fee: 0, isConfigured: false };
+  }
+
+  const defaults = governorateRates.filter((rate) => !rate.area.trim());
+  if (defaults.length === 1) {
+    return { fee: Number(defaults[0].fee_egp), isConfigured: true };
   }
 
   return { fee: 0, isConfigured: false };
