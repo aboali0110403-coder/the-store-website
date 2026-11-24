@@ -51,6 +51,8 @@ import {
   getSignedDesignReferenceUrl,
 } from '../lib/api';
 import { formatEGP } from '../lib/commerceLogic';
+import { createLatestGate, resolveAdminAccess } from '../lib/adminAccess';
+import { shippingRateSummary } from '../lib/adminLabels';
 import { CategoryItem, ShippingRate } from '../lib/store';
 
 type Tab =
@@ -109,7 +111,7 @@ export default function Admin() {
   // True while the admin allowlist check is in flight, so a signed-in user is not shown "Unauthorized" before the check finishes.
   const [verifying, setVerifying] = useState(false);
   const [verifyFailed, setVerifyFailed] = useState(false);
-  const verifySeq = useRef(0);
+  const verifyGate = useRef(createLatestGate());
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -270,8 +272,7 @@ export default function Admin() {
   // A query error is reported as a retryable verification failure, not as "not in the allowlist".
   // Only the latest call may change state, so an older, slower call cannot overwrite a newer result.
   const verifyAccess = useCallback(async (userSession: any) => {
-    const seq = ++verifySeq.current;
-    const isLatest = () => seq === verifySeq.current;
+    const isLatest = verifyGate.current.start();
 
     if (!userSession?.user) {
       setVerifying(false);
@@ -281,42 +282,23 @@ export default function Admin() {
 
     setVerifying(true);
     setVerifyFailed(false);
-    try {
-      let data: any[] | null = null;
-      let failed = true;
-      for (let attempt = 0; attempt < 2 && failed; attempt++) {
-        const res = await supabase
-          .from('admin_users')
-          .select('user_id')
-          .eq('user_id', userSession.user.id);
-        if (!res.error) {
-          data = res.data;
-          failed = false;
-        }
-      }
-      if (!isLatest()) return;
+    const result = await resolveAdminAccess(async () => {
+      const res = await supabase.from('admin_users').select('user_id').eq('user_id', userSession.user.id);
+      return { data: res.data, error: res.error };
+    });
+    if (!isLatest()) return;
 
-      if (failed) {
-        setVerifyFailed(true);
-        setIsAuthorized(false);
-        setAuthError(
-          isAr
-            ? 'تعذّر التحقق من صلاحيات الحساب الآن. حاولي مرة أخرى بعد لحظات.'
-            : 'Could not verify admin access right now. Please try again in a moment.'
-        );
-      } else if (!data || data.length === 0) {
-        setIsAuthorized(false);
-        setAuthError(
-          isAr
-            ? 'هذا الحساب غير مصرح له كمسؤول. يرجى التواصل مع مالك المتجر لإضافة حسابك.'
-            : 'Access Denied: Account is not in the store admin allowlist.'
-        );
-      } else {
-        setIsAuthorized(true);
-        setAuthError('');
-      }
-    } catch {
-      if (!isLatest()) return;
+    if (result === 'granted') {
+      setIsAuthorized(true);
+      setAuthError('');
+    } else if (result === 'denied') {
+      setIsAuthorized(false);
+      setAuthError(
+        isAr
+          ? 'هذا الحساب غير مصرح له كمسؤول. يرجى التواصل مع مالك المتجر لإضافة حسابك.'
+          : 'Access Denied: Account is not in the store admin allowlist.'
+      );
+    } else {
       setVerifyFailed(true);
       setIsAuthorized(false);
       setAuthError(
@@ -324,9 +306,8 @@ export default function Admin() {
           ? 'تعذّر التحقق من صلاحيات الحساب الآن. حاولي مرة أخرى بعد لحظات.'
           : 'Could not verify admin access right now. Please try again in a moment.'
       );
-    } finally {
-      if (isLatest()) setVerifying(false);
     }
+    setVerifying(false);
   }, [isAr]);
 
   useEffect(() => {
@@ -341,7 +322,7 @@ export default function Admin() {
       setSession(session);
       if (session) verifyAccess(session);
       else {
-        verifySeq.current++;
+        verifyGate.current.invalidate();
         setVerifying(false);
         setIsAuthorized(false);
       }
@@ -2248,7 +2229,7 @@ export default function Admin() {
                       {r.area.trim() ? (isAr ? `المنطقة: ${r.area}` : `Area: ${r.area}`) : (isAr ? 'سعر افتراضي للمحافظة' : 'Governorate default')}
                     </span>
                     <span className="text-xs text-[#806f77] ml-2">
-                      {r.fee_egp} EGP · {r.estimated_min_days}–{r.estimated_max_days} days · {r.is_active ? 'Active' : 'Inactive'}
+                      {shippingRateSummary(r, isAr)}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -2267,11 +2248,12 @@ export default function Admin() {
                         });
                       }}
                     >
-                      Edit
+                      {isAr ? 'تعديل' : 'Edit'}
                     </button>
                     <button
                       type="button"
                       className="mero-text-button danger"
+                      aria-label={isAr ? 'حذف سعر الشحن' : 'Delete shipping rate'}
                       onClick={() => handleDeleteShippingRate(r.id)}
                     >
                       <Trash2 size={13} />
