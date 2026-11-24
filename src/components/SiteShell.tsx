@@ -18,13 +18,18 @@ import {
   CartItem,
   ShippingRate,
   CategoryItem,
-  initialCategories,
   readStorage,
   writeStorage,
   copy,
-  initialArtisanProducts,
 } from '../lib/store';
-import { fetchCatalog, fetchShippingRates, fetchCategories } from '../lib/api';
+import {
+  fetchCatalog,
+  fetchShippingRates,
+  fetchCategories,
+  getCatalogReadStatus,
+  getCategoriesReadStatus,
+  CatalogReadStatus,
+} from '../lib/api';
 import { formatEGP, mergeCartItems } from '../lib/commerceLogic';
 
 interface BoutiqueContextType {
@@ -48,6 +53,8 @@ interface BoutiqueContextType {
   refreshCatalog: () => Promise<void>;
   refreshCategories: () => Promise<void>;
   loadingCatalog: boolean;
+  catalogReadStatus: CatalogReadStatus;
+  categoriesReadStatus: CatalogReadStatus;
 }
 
 const BoutiqueContext = createContext<BoutiqueContextType | null>(null);
@@ -62,16 +69,19 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguageState] = useState<Language>(() => readStorage<Language>('mero_lang', 'en'));
   const [cart, setCart] = useState<CartItem[]>(() => readStorage<CartItem[]>('mero_cart', []));
   const [wishlist, setWishlist] = useState<string[]>(() => readStorage<string[]>('mero_wishlist', []));
-  const [products, setProducts] = useState<Product[]>(initialArtisanProducts);
-  const [categories, setCategories] = useState<CategoryItem[]>(initialCategories);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
+  const [catalogReadStatus, setCatalogReadStatus] = useState<CatalogReadStatus>('loading');
+  const [categoriesReadStatus, setCategoriesReadStatus] = useState<CatalogReadStatus>('loading');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
 
   const loadCategoriesData = async () => {
     try {
       const cats = await fetchCategories();
-      if (cats && cats.length > 0) setCategories(cats);
+      setCategories(cats);
+      setCategoriesReadStatus(getCategoriesReadStatus());
     } catch (e) {
       console.warn('Categories load note:', e);
     }
@@ -85,12 +95,16 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchShippingRates(),
         fetchCategories(),
       ]);
-      if (prods && prods.length > 0) setProducts(prods);
-      if (rates && rates.length > 0) setShippingRates(rates);
-      if (cats && cats.length > 0) setCategories(cats);
+      setProducts(prods);
+      setShippingRates(rates || []);
+      setCategories(cats);
+      setCatalogReadStatus(getCatalogReadStatus());
+      setCategoriesReadStatus(getCategoriesReadStatus());
     } catch (e) {
       console.warn('Data load warning:', e);
     } finally {
+      setCatalogReadStatus(getCatalogReadStatus());
+      setCategoriesReadStatus(getCategoriesReadStatus());
       setLoadingCatalog(false);
     }
   };
@@ -203,6 +217,8 @@ export const BoutiqueProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         refreshCatalog: loadData,
         refreshCategories: loadCategoriesData,
         loadingCatalog,
+        catalogReadStatus,
+        categoriesReadStatus,
       }}
     >
       <SiteShellInner>{children}</SiteShellInner>
@@ -220,6 +236,9 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
     removeFromBag,
     updateQuantity,
     products,
+    categories,
+    catalogReadStatus,
+    categoriesReadStatus,
     isCartOpen,
     setIsCartOpen,
   } = useBoutique();
@@ -235,19 +254,33 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [location]);
 
   return (
-    <div className={`site-frame ${isAr ? 'rtl' : ''}`}>
-      {/* Announcement bar */}
-      <div className="announcement-bar">
-        <Sparkles size={12} />
-        <span>{isAr ? 'تطريز يدوي أصيل بحرفية مصرية معاصرة' : 'Handcrafted Egyptian Artisanal Embroidery'}</span>
+      <div className={`site-frame ${isAr ? 'rtl' : ''}`}>
+        <a className="skip-link" href="#page-content">{isAr ? 'تجاوز إلى المحتوى' : 'Skip to content'}</a>
+        {/* Announcement bar */}
+        <div className="announcement-bar">
+        <Sparkles size={12} aria-hidden="true" />
+        <span>{isAr ? 'مشغل مستقل في المنصورة، تديره صانعة واحدة' : 'An independent one-maker atelier in Mansoura'}</span>
         <span className="announcement-dot">·</span>
-        <span className="announcement-secondary">{isAr ? 'شحن فوري متاح' : 'Bespoke & Ready Editions Available'}</span>
+        <span className="announcement-secondary">{isAr ? 'تصميم وخياطة وتطريز بيد المؤسسة' : 'Designed, sewn and embroidered by its founder'}</span>
         <span className="announcement-dot">·</span>
         <Link href="/track-order" className="announcement-track-link">
           <Truck size={12} />
           <span>{isAr ? 'تتبع طلبك' : 'Track Order'}</span>
         </Link>
       </div>
+
+      {(catalogReadStatus === 'fallback' || catalogReadStatus === 'unavailable' ||
+        categoriesReadStatus === 'fallback' || categoriesReadStatus === 'unavailable') && (
+        <div className="catalog-read-notice" role="status" aria-live="polite">
+          {catalogReadStatus === 'fallback' || categoriesReadStatus === 'fallback'
+            ? isAr
+              ? 'وضع تطوير: بعض عناصر الكتالوج محلية وليست بيانات متجر مباشرة.'
+              : 'Development fallback: some catalog content is local, not live store data.'
+            : isAr
+              ? 'تعذر تحديث جزء من الكتالوج من المتجر الآن. قد لا تظهر جميع المعلومات.'
+              : 'Some catalog information could not be refreshed from the store.'}
+        </div>
+      )}
 
       {/* Main sticky header */}
       <header className="site-header">
@@ -257,6 +290,8 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             className="mobile-menu-button icon-button"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="Open menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             <Menu size={20} />
           </button>
@@ -279,15 +314,6 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </Link>
             <Link href="/shop" className={location === '/shop' ? 'active' : ''}>
               {t.shopAll}
-            </Link>
-            <Link href="/shop?category=Dresses" className={location.includes('category=Dresses') ? 'active' : ''}>
-              {t.dresses}
-            </Link>
-            <Link href="/shop?category=Abayas" className={location.includes('category=Abayas') ? 'active' : ''}>
-              {t.abayas}
-            </Link>
-            <Link href="/shop?category=Kaftans" className={location.includes('category=Kaftans') ? 'active' : ''}>
-              {t.kaftans}
             </Link>
             <Link href="/custom-design" className={location === '/custom-design' ? 'active' : ''}>
               {t.customDesign}
@@ -331,7 +357,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
       {mobileMenuOpen && (
         <>
           <div className="menu-backdrop" onClick={() => setMobileMenuOpen(false)} />
-          <div className="main-nav is-open" style={{ zIndex: 40 }}>
+          <nav id="mobile-navigation" className="main-nav is-open" aria-label={isAr ? 'التنقل على الهاتف' : 'Mobile navigation'} style={{ zIndex: 40 }}>
             <div className="mobile-nav-top">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="site-logo">
                 <img
@@ -356,9 +382,11 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </div>
             <Link href="/">{isAr ? 'الرئيسية' : 'Home'}</Link>
             <Link href="/shop">{t.shopAll}</Link>
-            <Link href="/shop?category=Dresses">{t.dresses}</Link>
-            <Link href="/shop?category=Abayas">{t.abayas}</Link>
-            <Link href="/shop?category=Kaftans">{t.kaftans}</Link>
+            {categories.map((category) => (
+              <Link key={category.id || category.filter} href={`/shop?category=${encodeURIComponent(category.filter)}`}>
+                {isAr ? category.nameAr : category.name}
+              </Link>
+            ))}
             <Link href="/custom-design">{t.customDesign}</Link>
             <Link href="/track-order">{isAr ? 'تتبع مسار طلبك' : 'Track Your Order'}</Link>
             <Link href="/our-story">{t.ourStory}</Link>
@@ -366,12 +394,12 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               <ShieldCheck size={14} />
               {isAr ? 'إدارة المتجر' : 'Admin Portal'}
             </Link>
-          </div>
+          </nav>
         </>
       )}
 
       {/* Main page content */}
-      <div className="page-wrapper">{children}</div>
+      <div id="page-content" className="page-wrapper" tabIndex={-1}>{children}</div>
 
       {/* Shopping Bag Drawer */}
       {isCartOpen && (
@@ -421,7 +449,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         key={`${item.productId}-${item.size}-${item.color}`}
                         className="cart-item"
                       >
-                        <img src={product.image} alt={product.alt} />
+                        {product.image ? <img src={product.image} alt={product.alt} /> : <span className="cart-image-unavailable">{isAr ? 'الصورة غير متاحة' : 'Image not available'}</span>}
                         <div className="cart-item-copy">
                           <div className="cart-item-top">
                             <h3>{isAr ? product.nameAr : product.name}</h3>
@@ -509,8 +537,8 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </div>
             <p>
               {isAr
-                ? 'دار أزياء مصرية راقية تصيغ التراث بأنامل ذهبية وتطريز يدوي بديع للمرأة العصرية المتألقة.'
-                : 'Exclusive Egyptian designer garments where embroidery heritage becomes modern self-expression.'}
+                ? 'مشغل مستقل للتطريز والخياطة في المنصورة، تديره مؤسسته وصانعته.'
+                : 'An independent Mansoura embroidery and tailoring atelier, run by its maker.'}
             </p>
             <div className="social-links">
               <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">
@@ -522,13 +550,14 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             </div>
           </div>
 
-          <div className="footer-column">
-            <span className="footer-label">{isAr ? 'المجموعات' : 'Collections'}</span>
-            <Link href="/shop?category=Dresses">{t.dresses}</Link>
-            <Link href="/shop?category=Abayas">{t.abayas}</Link>
-            <Link href="/shop?category=Kaftans">{t.kaftans}</Link>
-            <Link href="/shop?category=Sets">{isAr ? 'أطقم حصرية' : 'Tailored Sets'}</Link>
-            <Link href="/custom-design">{t.customDesign}</Link>
+        <div className="footer-column">
+          <span className="footer-label">{isAr ? 'المجموعات' : 'Collections'}</span>
+          {categories.map((category) => (
+            <Link key={category.id || category.filter} href={`/shop?category=${encodeURIComponent(category.filter)}`}>
+              {isAr ? category.nameAr : category.name}
+            </Link>
+          ))}
+          <Link href="/custom-design">{t.customDesign}</Link>
           </div>
 
           <div className="footer-column">
@@ -555,7 +584,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
           <span>
             © {new Date().getFullYear()} Mero Boutique. {isAr ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
           </span>
-          <span>{isAr ? 'صُنع بحب وإتقان في مصر' : 'Designed & Handcrafted in Cairo, Egypt'}</span>
+          <span>{isAr ? 'تصميم وخياطة وتطريز يدوي في المنصورة، مصر' : 'Designed and made by its founder in Mansoura, Egypt'}</span>
         </div>
       </footer>
     </div>
