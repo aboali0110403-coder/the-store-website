@@ -71,6 +71,22 @@ const getAdminResourceLabel = (key: string, isAr: boolean) => {
   return labels[key] || key;
 };
 
+const ORDER_STATUSES = ['pending', 'confirmed', 'in_production', 'ready_to_ship', 'shipped', 'delivered', 'cancelled'] as const;
+const ORDER_STATUS_LABELS_EN: Record<string, string> = {
+  pending: 'Pending', confirmed: 'Confirmed', in_production: 'In Production',
+  ready_to_ship: 'Ready to Ship', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+};
+const ORDER_STATUS_LABELS_AR: Record<string, string> = {
+  pending: 'قيد الانتظار', confirmed: 'مؤكد', in_production: 'قيد التنفيذ',
+  ready_to_ship: 'جاهز للشحن', shipped: 'تم الشحن', delivered: 'تم التسليم', cancelled: 'ملغي',
+};
+const orderStatusLabel = (status: string, isAr: boolean) =>
+  (isAr ? ORDER_STATUS_LABELS_AR[status] : ORDER_STATUS_LABELS_EN[status]) || status;
+const phoneHref = (phone: string) => `tel:${(phone || '').replace(/[^+\d]/g, '')}`;
+const whatsappHref = (phone: string) => `https://wa.me/${(phone || '').replace(/\D/g, '')}`;
+const slugifyName = (name: string) =>
+  name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
 export default function Admin() {
   const { language, refreshCatalog, refreshCategories } = useBoutique();
   const isAr = language === 'ar';
@@ -171,6 +187,8 @@ export default function Admin() {
   });
 
   const [orderStatusNotes, setOrderStatusNotes] = useState<Record<string, string>>({});
+  const [pendingOrderStatus, setPendingOrderStatus] = useState<Record<string, string>>({});
+  const [slugTouched, setSlugTouched] = useState(false);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
@@ -577,7 +595,12 @@ export default function Admin() {
     const notes = orderStatusNotes[orderId] || '';
     try {
       await adminUpdateOrderStatus(orderId, status, notes);
-      setStatusMessage(`Order status updated to ${status}.`);
+      setPendingOrderStatus((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+      setStatusMessage(isAr ? `تم تحديث حالة الطلب إلى «${orderStatusLabel(status, true)}».` : `Order status updated to ${orderStatusLabel(status, false)}.`);
       await loadDashboardData();
     } catch (err: any) {
       setErrorMessage(err?.message || 'Could not update order status.');
@@ -962,7 +985,8 @@ export default function Admin() {
                 <button
                   type="button"
                   className="mero-text-button"
-                  onClick={() =>
+                  onClick={() => {
+                    setSlugTouched(false);
                     setProductForm({
                       id: '',
                       slug: '',
@@ -986,8 +1010,8 @@ export default function Admin() {
                       stock: '5',
                       is_published: true,
                       is_featured: false,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Plus size={14} />
                   {isAr ? 'نموذج جديد' : 'New Blank Form'}
@@ -1000,7 +1024,10 @@ export default function Admin() {
                   <input
                     required
                     value={productForm.slug}
-                    onChange={(e) => setProductForm({ ...productForm, slug: e.target.value })}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      setProductForm({ ...productForm, slug: e.target.value });
+                    }}
                   />
                 </label>
 
@@ -1009,7 +1036,14 @@ export default function Admin() {
                   <input
                     required
                     value={productForm.name_en}
-                    onChange={(e) => setProductForm({ ...productForm, name_en: e.target.value })}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setProductForm((prev) => ({
+                        ...prev,
+                        name_en: name,
+                        ...(!prev.id && !slugTouched ? { slug: slugifyName(name) } : {}),
+                      }));
+                    }}
                   />
                 </label>
 
@@ -2133,13 +2167,9 @@ export default function Admin() {
                   className="p-1.5 text-xs border border-stone-300 bg-white"
                 >
                   <option value="all">{isAr ? 'جميع الحالات' : 'All Statuses'}</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="in_production">In Production</option>
-                  <option value="ready_to_ship">Ready to Ship</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
+                  {ORDER_STATUSES.map((s) => (
+                    <option key={s} value={s}>{orderStatusLabel(s, isAr)}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -2161,7 +2191,15 @@ export default function Admin() {
                   <div className="w-full flex justify-between items-start">
                     <div>
                       <strong>
-                        {o.order_number} · {o.customer_name} ({o.phone})
+                        {o.order_number} · {o.customer_name}{' '}
+                        {o.phone ? (
+                          <>
+                            (<a href={phoneHref(o.phone)} className="underline">{o.phone}</a>){' '}
+                            <a href={whatsappHref(o.phone)} target="_blank" rel="noreferrer" className="underline font-semibold" aria-label={isAr ? 'فتح محادثة واتساب مع العميل، من غير إرسال تلقائي' : 'Open WhatsApp chat with customer, no auto-send'}>
+                              {isAr ? 'واتساب' : 'WhatsApp'}
+                            </a>
+                          </>
+                        ) : null}
                       </strong>
                       <small>
                         {o.governorate}, {o.city_area} · {o.address} · Total: {formatEGP(o.total_egp ?? o.subtotal_egp, language)}
@@ -2184,18 +2222,38 @@ export default function Admin() {
                         className="text-xs p-1 border w-44 bg-white"
                       />
                       <select
-                        value={o.status}
-                        onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                        value={pendingOrderStatus[o.id] ?? o.status}
+                        onChange={(e) => setPendingOrderStatus({ ...pendingOrderStatus, [o.id]: e.target.value })}
                         className="text-xs p-1 border font-medium bg-white"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="in_production">In Production</option>
-                        <option value="ready_to_ship">Ready to Ship</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
+                        {ORDER_STATUSES.map((s) => (
+                          <option key={s} value={s}>{orderStatusLabel(s, isAr)}</option>
+                        ))}
                       </select>
+                      {pendingOrderStatus[o.id] && pendingOrderStatus[o.id] !== o.status && (
+                        <>
+                          <button
+                            type="button"
+                            className="text-xs p-1 border font-semibold bg-[#3f4530] text-white"
+                            onClick={() => handleUpdateOrderStatus(o.id, pendingOrderStatus[o.id])}
+                          >
+                            {isAr ? 'تأكيد الحفظ' : 'Confirm save'}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs p-1 border bg-white"
+                            onClick={() =>
+                              setPendingOrderStatus((prev) => {
+                                const next = { ...prev };
+                                delete next[o.id];
+                                return next;
+                              })
+                            }
+                          >
+                            {isAr ? 'تراجع' : 'Revert'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -2230,7 +2288,7 @@ export default function Admin() {
                               <span className="text-[#806f77]">
                                 {time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                               </span>
-                              <span className="font-medium uppercase text-[#49343f]">[{st}]</span>
+                              <span className="font-medium uppercase text-[#49343f]">[{orderStatusLabel(st, isAr)}]</span>
                               {nt && <span>— {nt}</span>}
                             </div>
                           );
@@ -2256,7 +2314,15 @@ export default function Admin() {
                   <div className="w-full flex justify-between items-start">
                     <div>
                       <strong>
-                        {r.request_number} · {r.customer_name} ({r.phone})
+                        {r.request_number} · {r.customer_name}{' '}
+                        {r.phone ? (
+                          <>
+                            (<a href={phoneHref(r.phone)} className="underline">{r.phone}</a>){' '}
+                            <a href={whatsappHref(r.phone)} target="_blank" rel="noreferrer" className="underline font-semibold" aria-label={isAr ? 'فتح محادثة واتساب مع العميل، من غير إرسال تلقائي' : 'Open WhatsApp chat with customer, no auto-send'}>
+                              {isAr ? 'واتساب' : 'WhatsApp'}
+                            </a>
+                          </>
+                        ) : null}
                       </strong>
                       <small>
                         Garment: {r.garment_type} · Fabric: {r.preferred_fabric || '—'} · Colors: {r.preferred_colors || '—'}
