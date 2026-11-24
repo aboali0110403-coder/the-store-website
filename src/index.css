@@ -1624,6 +1624,7 @@ body.rtl .guide-grid,
   height: 64px;
   width: auto;
   transition: transform 0.25s ease;
+  content: url(/mero-logo-ivory-256.png);
 }
 .footer-logo-wrap:hover .footer-logo-img {
   transform: scale(1.06);
