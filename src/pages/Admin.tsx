@@ -180,10 +180,10 @@ export default function Admin() {
 
   const [variantForm, setVariantForm] = useState({
     id: '',
-    size: 'M',
-    color: 'Dusty Rose',
+    size: '',
+    color: '',
     sku: '',
-    stock: '5',
+    stock: '0',
     is_active: true,
   });
 
@@ -528,7 +528,7 @@ export default function Admin() {
         stock: Number(variantForm.stock),
         is_active: variantForm.is_active,
       });
-      setVariantForm({ id: '', size: 'M', color: 'Dusty Rose', sku: '', stock: '5', is_active: true });
+      setVariantForm({ id: '', size: '', color: '', sku: '', stock: '0', is_active: true });
       setStatusMessage('Variant updated.');
       await loadDashboardData();
     } catch (err: any) {
@@ -1831,7 +1831,7 @@ export default function Admin() {
                         <button
                           type="button"
                           onClick={() => handleToggleCategoryPublished(cat)}
-                          className="text-[#7d6b73] hover:text-[#49343f] underline text-[11px]"
+                          className="admin-hit text-[#7d6b73] hover:text-[#49343f] underline text-[11px]"
                         >
                           {cat.is_published !== false
                             ? isAr
@@ -1845,7 +1845,7 @@ export default function Admin() {
                         <button
                           type="button"
                           onClick={() => handleDeleteCategory(cat)}
-                          className="text-[#b34040] hover:text-[#8a1c1c] text-[11px] flex items-center gap-0.5"
+                          className="admin-hit text-[#b34040] hover:text-[#8a1c1c] text-[11px] flex items-center gap-0.5"
                           title={isAr ? 'حذف التصنيف' : 'Delete Category'}
                         >
                           <Trash2 size={12} />
@@ -1988,7 +1988,7 @@ export default function Admin() {
                             <span>{isAr ? 'الترتيب' : 'Order'}: {img.sort_order}</span>
                             <button
                               type="button"
-                              className="text-[#a34d55]"
+                              className="admin-hit text-[#a34d55]"
                               onClick={() => handleDeleteGalleryImage(img.id)}
                             >
                               <Trash2 size={13} />

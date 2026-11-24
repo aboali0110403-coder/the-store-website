@@ -224,7 +224,7 @@ export default function TrackOrder() {
   };
 
   return (
-    <div className="order-tracking-page">
+    <main className="order-tracking-page">
       {/* Editorial Header */}
       <section className="tracking-hero">
         <div className="container">
@@ -709,6 +709,6 @@ export default function TrackOrder() {
           )}
         </div>
       </section>
-    </div>
+    </main>
   );
 }
