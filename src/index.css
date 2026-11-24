@@ -1971,12 +1971,12 @@ a { text-underline-offset: 3px; }
 .atelier-opening:not(:has(.atelier-opening-image)) { background: linear-gradient(150deg, #5a6142 5%, #3f4530 100%); }
 .atelier-opening:not(:has(.atelier-opening-image)) .atelier-opening-scrim { display: none; }
 .atelier-opening-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
-.atelier-opening-scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(28,25,20,.78) 0%, rgba(28,25,20,.4) 38%, rgba(28,25,20,.1) 62%, rgba(28,25,20,.22) 100%); }
+.atelier-opening-scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(28,25,20,.82) 0%, rgba(28,25,20,.58) 34%, rgba(28,25,20,.38) 58%, rgba(28,25,20,.34) 100%); }
 .atelier-opening-copy { position: relative; z-index: 1; max-width: 620px; padding: 0; color: #f6f2e9; }
 .atelier-opening h1 { color: #f8f4ec; font-size: clamp(2.5rem, 11vw, 5.4rem); text-shadow: 0 2px 22px rgba(28,25,20,.35); }
-.atelier-opening .atelier-location { color: #d8dcb8 !important; }
-.atelier-opening .atelier-intro { color: rgba(246,242,233,.94); }
-.atelier-opening .atelier-owner-note { color: rgba(246,242,233,.8); border-top-color: rgba(246,242,233,.35); }
+.atelier-opening .atelier-location { color: #e3e6c4 !important; text-shadow: 0 1px 10px rgba(28,25,20,.6); }
+.atelier-opening .atelier-intro { color: rgba(246,242,233,.96); text-shadow: 0 1px 12px rgba(28,25,20,.55); }
+.atelier-opening .atelier-owner-note { color: rgba(246,242,233,.9); border-top-color: rgba(246,242,233,.4); text-shadow: 0 1px 10px rgba(28,25,20,.5); }
 .atelier-ghost-on-image { border-color: rgba(246,242,233,.72) !important; color: #f6f2e9 !important; }
 .atelier-ghost-on-image:hover { background: rgba(246,242,233,.14); }
 .atelier-feature { position: relative; z-index: 2; width: 100%; margin-top: 20px; padding: 0; background: transparent; color: #f6f2e9; }
