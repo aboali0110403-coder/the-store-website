@@ -954,25 +954,100 @@ export default function Admin() {
               <button type="button" className="mero-text-button" onClick={loadDashboardData} disabled={loading}><RefreshCw size={15} /> {isAr ? 'تحديث السجلات' : 'Refresh records'}</button>
             </div>
             <p className="admin-overview-note">{isAr ? 'الأعداد أدناه محسوبة من السجلات التي نجح تحميلها في هذه الجلسة فقط.' : 'Counts below are calculated only from records successfully loaded in this session.'}</p>
-            <div className="admin-overview-list">
-              {([
-                ['products', isAr ? 'المنتجات' : 'Products', products.length],
-                ['orders', isAr ? 'الطلبات' : 'Orders', orders.length],
-                ['custom_requests', isAr ? 'طلبات التصميم الخاص' : 'Custom design requests', customRequests.length],
-                ['shipping', isAr ? 'أسعار الشحن' : 'Shipping rates', shippingRates.length],
-                ['coupons', isAr ? 'الكوبونات' : 'Coupons', coupons.length],
-                ['categories', isAr ? 'التصنيفات' : 'Categories', adminCategories.length],
-              ] as const).map(([key, label, count]) => (
-                <button key={key} type="button" className="admin-overview-row" onClick={() => setActiveTab(key as Tab)}>
-                  <span>{label}</span>
-                  <strong>{readStates[key] === 'loaded' ? count : readStates[key] === 'loading' ? (isAr ? 'جارٍ التحميل' : 'Loading') : (isAr ? 'غير متاح' : 'Unavailable')}</strong>
-                  <ArrowRight size={16} aria-hidden="true" />
-                </button>
-              ))}
-            </div>
-            {readStates.orders === 'loaded' && orders.filter((order) => order.status === 'pending').length > 0 && (
-              <p className="admin-pending-note">{isAr ? `هناك ${orders.filter((order) => order.status === 'pending').length} طلبات بحالة قيد الانتظار.` : `${orders.filter((order) => order.status === 'pending').length} orders are pending.`}</p>
-            )}
+            {(() => {
+              const readValue = (key: string, count: number) =>
+                readStates[key] === 'loaded' ? String(count) : readStates[key] === 'loading' ? (isAr ? '…' : '…') : (isAr ? 'غير متاح' : 'Unavailable');
+              const ordersLoaded = readStates.orders === 'loaded';
+              const nonCancelled = orders.filter((o) => o.status !== 'cancelled');
+              const revenue = nonCancelled.reduce((sum, o) => sum + (o.total_egp ?? o.subtotal_egp ?? 0), 0);
+              const pendingCount = orders.filter((o) => o.status === 'pending').length;
+              const statusCounts = ORDER_STATUSES.map((s) => ({ status: s, count: orders.filter((o) => o.status === s).length }));
+              const maxStatus = Math.max(1, ...statusCounts.map((s) => s.count));
+              const recentOrders = [...orders].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 5);
+              const lowStock = products.filter((p: any) => p.production_type !== 'made_to_order' && Number(p.stock) <= 2);
+              const kpis = [
+                { key: 'orders', label: isAr ? 'إجمالي الطلبات' : 'Total Orders', value: readValue('orders', orders.length) },
+                { key: 'orders', label: isAr ? 'طلبات قيد الانتظار' : 'Pending Orders', value: readValue('orders', pendingCount) },
+                { key: 'orders', label: isAr ? 'قيمة الطلبات' : 'Order Value', value: ordersLoaded ? formatEGP(revenue, language) : readValue('orders', 0) },
+                { key: 'custom_requests', label: isAr ? 'طلبات التصميم' : 'Custom Requests', value: readValue('custom_requests', customRequests.length) },
+              ];
+              return (
+                <>
+                  <div className="admin-kpi-grid">
+                    {kpis.map((kpi, i) => (
+                      <button key={i} type="button" className="admin-kpi-card" onClick={() => setActiveTab(kpi.key as Tab)}>
+                        <span className="admin-kpi-label">{kpi.label}</span>
+                        <strong className="admin-kpi-value">{kpi.value}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="admin-mini-strip">
+                    {([
+                      ['products', isAr ? 'المنتجات' : 'Products', products.length],
+                      ['shipping', isAr ? 'أسعار الشحن' : 'Shipping rates', shippingRates.length],
+                      ['coupons', isAr ? 'الكوبونات' : 'Coupons', coupons.length],
+                      ['categories', isAr ? 'التصنيفات' : 'Categories', adminCategories.length],
+                    ] as const).map(([key, label, count]) => (
+                      <button key={key} type="button" className="admin-mini-card" onClick={() => setActiveTab(key as Tab)}>
+                        <span>{label}</span>
+                        <strong>{readValue(key, count)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="admin-dash-panels">
+                    <div className="admin-dash-panel">
+                      <h3>{isAr ? 'الطلبات حسب الحالة' : 'Orders by Status'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : orders.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. ستظهر الحالات هنا فور وصول أول طلب.' : 'No orders yet. Status counts appear here as soon as the first order arrives.'}</p>
+                      ) : (
+                        statusCounts.map(({ status, count }) => (
+                          <div key={status} className="admin-status-row">
+                            <span className="admin-status-name">{orderStatusLabel(status, isAr)}</span>
+                            <span className="admin-status-bar-wrap"><span className="admin-status-bar" style={{ width: `${Math.max(count > 0 ? 6 : 0, (count / maxStatus) * 100)}%` }} /></span>
+                            <strong className="admin-status-count">{count}</strong>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="admin-dash-panel">
+                      <h3>{isAr ? 'أحدث الطلبات' : 'Recent Orders'}</h3>
+                      {!ordersLoaded ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
+                      ) : recentOrders.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد.' : 'No orders yet.'}</p>
+                      ) : (
+                        recentOrders.map((o) => (
+                          <button key={o.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('orders')}>
+                            <span className="admin-recent-id">#{o.order_number}</span>
+                            <span className="admin-recent-customer">{o.customer_name}</span>
+                            <span className="admin-recent-total">{formatEGP(o.total_egp ?? o.subtotal_egp, language)}</span>
+                            <span className={`admin-recent-status status-${o.status}`}>{orderStatusLabel(o.status, isAr)}</span>
+                          </button>
+                        ))
+                      )}
+                      <h3 className="admin-dash-subhead">{isAr ? 'مخزون منخفض' : 'Low Stock'}</h3>
+                      {readStates.products !== 'loaded' ? (
+                        <p className="admin-dash-empty">{isAr ? 'بيانات المنتجات غير متاحة.' : 'Product data unavailable.'}</p>
+                      ) : lowStock.length === 0 ? (
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد قطع بمخزون منخفض (٢ أو أقل).' : 'No pieces at low stock (2 or fewer).'}</p>
+                      ) : (
+                        lowStock.map((p: any) => (
+                          <button key={p.id} type="button" className="admin-recent-row" onClick={() => setActiveTab('products')}>
+                            <span className="admin-recent-customer">{isAr ? p.name_ar : p.name_en}</span>
+                            <strong className="admin-recent-total">{isAr ? `المتبقي ${p.stock}` : `${p.stock} left`}</strong>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  {ordersLoaded && pendingCount > 0 && (
+                    <p className="admin-pending-note">{isAr ? `هناك ${pendingCount} طلبات بحالة قيد الانتظار.` : `${pendingCount} orders are pending.`}</p>
+                  )}
+                </>
+              );
+            })()}
           </section>
         )}
 
