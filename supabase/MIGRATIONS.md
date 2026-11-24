@@ -47,3 +47,14 @@ the private `design-references` bucket files (listed by name only), and a full `
 The inspected Supabase backups endpoint lists no backups and PITR is off. A free logical backup is
 `pg_dump` against the project database (needs the database password and a direct connection), kept
 private (it contains customer data once orders exist) and never committed here.
+
+## Guest order guards (20261124210000)
+
+Local test (`tests/guest_guards_local_test.py`, run after `tests/local_replay.py`; both use the `pgserver` pip
+package and `/tmp/rp` paths, adjust as needed): guest checkout still works as the `anon` role with the server
+price, a replayed idempotency key returns the same order and does not count again, the 6th order from one phone in
+an hour is rejected, other phones still work, over-long fields are rejected, bad payment methods are rejected by the
+existing check constraint, client-sent prices are ignored, `anon` cannot read orders, the guard table, or run the
+guard function, a bad reference image is rejected, and the 21st lookup of one order number in 10 minutes is
+rejected. Not tested: real Supabase gateway headers (IP limits depend on `cf-connecting-ip`/`x-real-ip` being
+present), concurrency under load, and the deployed frontend error text for the new messages.

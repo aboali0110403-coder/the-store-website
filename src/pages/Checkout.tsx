@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
 import { submitStoreOrder, validateCoupon, saveCustomerOrder } from '../lib/api';
+import { friendlyServerMessage } from '../lib/commerceLogic';
 import {
   formatEGP,
   resolveShippingRate,
@@ -261,7 +262,7 @@ export default function Checkout() {
       clearBag();
     } catch (err) {
       setSubmissionError(
-        err instanceof Error ? err.message : isAr ? 'تعذر إرسال الطلب. يرجى المحاولة ثانية.' : 'Could not submit order.'
+        err instanceof Error ? friendlyServerMessage(err.message, isAr) : isAr ? 'تعذر إرسال الطلب. يرجى المحاولة ثانية.' : 'Could not submit order.'
       );
     } finally {
       setSaving(false);

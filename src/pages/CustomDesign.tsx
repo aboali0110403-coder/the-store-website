@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
 import { submitCustomDesignRequest, uploadDesignReferenceImage, deleteStorageFile } from '../lib/api';
+import { friendlyServerMessage } from '../lib/commerceLogic';
 import { formatEGP } from '../lib/commerceLogic';
 import { CaptchaChallenge } from '../components/CaptchaChallenge';
 
@@ -229,7 +230,7 @@ export default function CustomDesign() {
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : isAr ? 'تعذر إرسال طلب التصميم.' : 'Could not submit request.'
+        err instanceof Error ? friendlyServerMessage(err.message, isAr) : isAr ? 'تعذر إرسال طلب التصميم.' : 'Could not submit request.'
       );
     } finally {
       setSaving(false);
