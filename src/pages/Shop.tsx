@@ -322,7 +322,7 @@ export default function Shop() {
                         <div className="product-meta">
                           <strong>{formatEGP(product.price, language)}</strong>
                           <span
-                            className={`text-xs ${
+                            className={`text-[11px] sm:text-xs ${
                               isSoldOut
                                 ? 'text-[#a34d55] font-semibold'
                                 : product.production === 'ready'

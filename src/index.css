@@ -2212,3 +2212,4 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .footer-column a { display: inline-flex; align-items: center; min-height: 32px; }
 .text-link { min-height: 32px; }
 .announcement-track-link { display: inline-flex; align-items: center; min-height: 28px; }
+.product-meta strong { white-space: nowrap; }
