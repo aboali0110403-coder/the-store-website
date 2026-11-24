@@ -279,8 +279,8 @@ export default function Admin() {
         setIsAuthorized(false);
         setAuthError(
           isAr
-            ? 'هذا الحساب غير مصرح له كمسؤول. يجب إضافة معرف المستخدم (UUID) إلى جدول admin_users.'
-            : 'Access Denied: Account is not in the store admin allowlist (public.admin_users).'
+            ? 'هذا الحساب غير مصرح له كمسؤول. يرجى التواصل مع مالك المتجر لإضافة حسابك.'
+            : 'Access Denied: Account is not in the store admin allowlist.'
         );
       } else {
         setIsAuthorized(true);
@@ -750,8 +750,8 @@ export default function Admin() {
             <p>
               {session && !isAuthorized
                 ? isAr
-                  ? 'أنت مسجل الدخول، لكن حسابك غير موجود في قائمة مسؤولي المتجر (public.admin_users). تم تقييد كافة الصلاحيات الإدارية وفق سياسات RLS.'
-                  : 'Your account is authenticated, but not in the store admin allowlist (public.admin_users). Administrative privileges are strictly enforced by RLS.'
+                  ? 'أنت مسجل الدخول، لكن حسابك غير موجود في قائمة مسؤولي المتجر. تم تقييد كافة الصلاحيات الإدارية وفق سياسات RLS.'
+                  : 'Your account is authenticated, but not in the store admin allowlist. Administrative privileges are strictly enforced by RLS.'
                 : isAr
                 ? 'سجلي الدخول بحساب المشرف المسجل في Supabase Auth لإدارة المنتجات والطلبات والكوبونات والشحن.'
                 : 'Sign in with your verified Supabase owner credentials to manage catalog, gallery, stock, orders, and coupons.'}
@@ -1186,7 +1186,7 @@ export default function Admin() {
 
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Slug (URL identifier) *</span>
+                  <span>{isAr ? 'المعرّف في الرابط (Slug) *' : 'Slug (URL identifier) *'}</span>
                   <input
                     required
                     value={productForm.slug}
@@ -1198,7 +1198,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Name (English) *</span>
+                  <span>{isAr ? 'الاسم (بالإنجليزية) *' : 'Name (English) *'}</span>
                   <input
                     required
                     value={productForm.name_en}
@@ -1223,17 +1223,17 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Category (English) *</span>
+                  <span>{isAr ? 'التصنيف (بالإنجليزية) *' : 'Category (English) *'}</span>
                   <select
                     value={productForm.category}
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   >
-                    <option value="Dresses">Dresses</option>
-                    <option value="Abayas">Abayas</option>
-                    <option value="Kaftans">Kaftans</option>
-                    <option value="Tops">Tops</option>
-                    <option value="Sets">Sets</option>
-                    <option value="Exclusive Pieces">Exclusive Pieces</option>
+                    <option value="Dresses">{isAr ? 'فساتين' : 'Dresses'}</option>
+                    <option value="Abayas">{isAr ? 'عبايات' : 'Abayas'}</option>
+                    <option value="Kaftans">{isAr ? 'قفاطين' : 'Kaftans'}</option>
+                    <option value="Tops">{isAr ? 'بلوزات' : 'Tops'}</option>
+                    <option value="Sets">{isAr ? 'أطقم' : 'Sets'}</option>
+                    <option value="Exclusive Pieces">{isAr ? 'قطع حصرية' : 'Exclusive Pieces'}</option>
                   </select>
                 </label>
 
@@ -1247,7 +1247,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Price in EGP *</span>
+                  <span>{isAr ? 'السعر بالجنيه *' : 'Price in EGP *'}</span>
                   <input
                     type="number"
                     required
@@ -1257,7 +1257,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Compare-at Price (optional)</span>
+                  <span>{isAr ? 'السعر قبل الخصم (اختياري)' : 'Compare-at Price (optional)'}</span>
                   <input
                     type="number"
                     value={productForm.compare_at_egp}
@@ -1313,7 +1313,7 @@ export default function Admin() {
                 )}
 
                 <label className="mero-field">
-                  <span>Sizes (Comma separated)</span>
+                  <span>{isAr ? 'المقاسات (مفصولة بفاصلة)' : 'Sizes (Comma separated)'}</span>
                   <input
                     value={productForm.sizes}
                     onChange={(e) => setProductForm({ ...productForm, sizes: e.target.value })}
@@ -1322,7 +1322,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Colors (Comma separated)</span>
+                  <span>{isAr ? 'الألوان (مفصولة بفاصلة)' : 'Colors (Comma separated)'}</span>
                   <input
                     value={productForm.colors}
                     onChange={(e) => setProductForm({ ...productForm, colors: e.target.value })}
@@ -1431,7 +1431,7 @@ export default function Admin() {
 
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Description (English)</span>
+                  <span>{isAr ? 'الوصف (بالإنجليزية)' : 'Description (English)'}</span>
                   <textarea
                     value={productForm.description_en}
                     onChange={(e) => setProductForm({ ...productForm, description_en: e.target.value })}
@@ -1824,7 +1824,7 @@ export default function Admin() {
         {/* 2. GALLERY MANAGEMENT TAB */}
         {activeTab === 'gallery' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة معرض صور المنتجات (product_images)' : 'Product Gallery Images Management'}</h2>
+            <h2>{isAr ? 'إدارة معرض صور المنتجات' : 'Product Gallery Images Management'}</h2>
             <div className="mb-4">
               <label className="mero-field max-w-sm">
                 <span>{isAr ? 'اختاري المنتج' : 'Select Product for Gallery'}</span>
@@ -1881,7 +1881,7 @@ export default function Admin() {
 
                   <div className="mero-form-grid">
                     <label className="mero-field">
-                      <span>Image URL *</span>
+                      <span>{isAr ? 'رابط الصورة *' : 'Image URL *'}</span>
                       <input
                         required
                         type="url"
@@ -1892,7 +1892,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Alt Text</span>
+                      <span>{isAr ? 'النص البديل للصورة' : 'Alt Text'}</span>
                       <input
                         placeholder="Detail of lotus embroidery"
                         value={galleryForm.alt_text}
@@ -1901,7 +1901,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Sort Order</span>
+                      <span>{isAr ? 'ترتيب العرض' : 'Sort Order'}</span>
                       <input
                         type="number"
                         value={galleryForm.sort_order}
@@ -1965,7 +1965,7 @@ export default function Admin() {
         {/* 3. VARIANTS & STOCK MANAGEMENT TAB */}
         {activeTab === 'variants' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة المقاسات والمخزون (product_variants)' : 'Variant & Stock Management'}</h2>
+            <h2>{isAr ? 'إدارة المقاسات والمخزون' : 'Variant & Stock Management'}</h2>
             <div className="mb-4">
               <label className="mero-field max-w-sm">
                 <span>{isAr ? 'اختاري المنتج' : 'Select Product for Variants'}</span>
@@ -1990,7 +1990,7 @@ export default function Admin() {
                   </h3>
                   <div className="mero-form-grid">
                     <label className="mero-field">
-                      <span>Size (المقاس) *</span>
+                      <span>{isAr ? 'المقاس *' : 'Size *'}</span>
                       <input
                         required
                         value={variantForm.size}
@@ -2000,7 +2000,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Color (اللون) *</span>
+                      <span>{isAr ? 'اللون *' : 'Color *'}</span>
                       <input
                         required
                         value={variantForm.color}
@@ -2010,7 +2010,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>SKU Code</span>
+                      <span>{isAr ? 'كود المنتج (SKU)' : 'SKU Code'}</span>
                       <input
                         value={variantForm.sku}
                         onChange={(e) => setVariantForm({ ...variantForm, sku: e.target.value })}
@@ -2019,7 +2019,7 @@ export default function Admin() {
                     </label>
 
                     <label className="mero-field">
-                      <span>Stock Quantity (الكمية في المخزون) *</span>
+                      <span>{isAr ? 'الكمية في المخزون *' : 'Stock Quantity *'}</span>
                       <input
                         type="number"
                         required
@@ -2105,11 +2105,11 @@ export default function Admin() {
         {/* 4. SHIPPING RATES TAB */}
         {activeTab === 'shipping' && (
           <div className="mero-editor">
-            <h2>{isAr ? 'إدارة أسعار الشحن للمحافظات (shipping_rates)' : 'Egyptian Governorate Shipping Rates'}</h2>
+            <h2>{isAr ? 'إدارة أسعار الشحن للمحافظات' : 'Egyptian Governorate Shipping Rates'}</h2>
             <form onSubmit={handleSaveShippingRate} className="border p-4 bg-[#fffaf8] my-4">
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Governorate (المحافظة) *</span>
+                  <span>{isAr ? 'المحافظة *' : 'Governorate *'}</span>
                   <input
                     required
                     value={shippingForm.governorate}
@@ -2128,7 +2128,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Shipping Fee (EGP) *</span>
+                  <span>{isAr ? 'رسوم الشحن (جنيه) *' : 'Shipping Fee (EGP) *'}</span>
                   <input
                     type="number"
                     required
@@ -2230,7 +2230,7 @@ export default function Admin() {
             <form onSubmit={handleSaveCoupon} className="border p-4 bg-[#fffaf8] my-4">
               <div className="mero-form-grid">
                 <label className="mero-field">
-                  <span>Coupon Code *</span>
+                  <span>{isAr ? 'كود الكوبون *' : 'Coupon Code *'}</span>
                   <input
                     required
                     value={couponForm.code}
@@ -2240,20 +2240,20 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Discount Type</span>
+                  <span>{isAr ? 'نوع الخصم' : 'Discount Type'}</span>
                   <select
                     value={couponForm.discount_type}
                     onChange={(e) =>
                       setCouponForm({ ...couponForm, discount_type: e.target.value as any })
                     }
                   >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (EGP)</option>
+                    <option value="percentage">{isAr ? 'نسبة مئوية (%)' : 'Percentage (%)'}</option>
+                    <option value="fixed">{isAr ? 'مبلغ ثابت (جنيه)' : 'Fixed Amount (EGP)'}</option>
                   </select>
                 </label>
 
                 <label className="mero-field">
-                  <span>Discount Value *</span>
+                  <span>{isAr ? 'قيمة الخصم *' : 'Discount Value *'}</span>
                   <input
                     type="number"
                     required
@@ -2263,7 +2263,7 @@ export default function Admin() {
                 </label>
 
                 <label className="mero-field">
-                  <span>Minimum Order EGP</span>
+                  <span>{isAr ? 'الحد الأدنى للطلب (جنيه)' : 'Minimum Order EGP'}</span>
                   <input
                     type="number"
                     value={couponForm.min_order_egp}
@@ -2379,7 +2379,7 @@ export default function Admin() {
                       <small>
                         {o.governorate}, {o.city_area} · {o.address} · Total: {formatEGP(o.total_egp ?? o.subtotal_egp, language)}
                       </small>
-                      <small>Method: {o.payment_method} · Date: {new Date(o.created_at).toLocaleString()}</small>
+                      <small>{isAr ? 'طريقة الدفع' : 'Method'}: {o.payment_method} · {isAr ? 'التاريخ' : 'Date'}: {new Date(o.created_at).toLocaleString()}</small>
                       {o.notes && <small className="text-[#947381]">Notes: {o.notes}</small>}
                       <span className="admin-pill-row">
                         <span className="admin-pill" style={{ color: STATUS_COLORS[o.status] || '#6b5b62', background: `${STATUS_COLORS[o.status] || '#6b5b62'}1f` }}>{orderStatusLabel(o.status, isAr)}</span>
@@ -2483,7 +2483,7 @@ export default function Admin() {
         {/* 7. BESPOKE CUSTOM REQUESTS TAB */}
         {activeTab === 'custom_requests' && (
           <div className="mero-records">
-            <h2>{isAr ? 'طلبات التصميم الخاص (custom_design_requests)' : 'Bespoke Custom Design Inquiries'}</h2>
+            <h2>{isAr ? 'طلبات التصميم الخاص' : 'Bespoke Custom Design Inquiries'}</h2>
             {customRequests.length === 0 ? (
               <p className="mero-empty">{readStates.custom_requests === 'loaded' ? isAr ? 'لا توجد طلبات تصميم خاصة.' : 'No custom design inquiries yet.' : isAr ? 'تعذر تأكيد خلو القائمة حتى تنجح القراءة.' : 'The list cannot be confirmed empty until the read succeeds.'}</p>
             ) : (
@@ -2519,13 +2519,13 @@ export default function Admin() {
                       onChange={(e) => adminUpdateCustomDesignStatus(r.id, e.target.value)}
                       className="text-xs p-1 border font-medium"
                     >
-                      <option value="new">New</option>
-                      <option value="contacted">Contacted</option>
-                      <option value="quoted">Quoted</option>
-                      <option value="deposit_paid">Deposit Paid</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      <option value="new">{isAr ? 'جديد' : 'New'}</option>
+                      <option value="contacted">{isAr ? 'تم التواصل' : 'Contacted'}</option>
+                      <option value="quoted">{isAr ? 'تم التسعير' : 'Quoted'}</option>
+                      <option value="deposit_paid">{isAr ? 'تم دفع العربون' : 'Deposit Paid'}</option>
+                      <option value="in_progress">{isAr ? 'قيد التنفيذ' : 'In Progress'}</option>
+                      <option value="completed">{isAr ? 'مكتمل' : 'Completed'}</option>
+                      <option value="cancelled">{isAr ? 'ملغي' : 'Cancelled'}</option>
                     </select>
                   </div>
 
