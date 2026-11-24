@@ -1051,6 +1051,9 @@ export async function lookupPublicOrder(
       p_tracking_token: trackingToken ? trackingToken.trim() : null,
     });
 
+    if (error && /too many requests/i.test(error.message || '')) {
+      throw new Error(error.message);
+    }
     if (!error && data) {
       const orderData = typeof data === 'string' ? JSON.parse(data) : data;
       if (orderData && orderData.order_number) {
@@ -1076,6 +1079,7 @@ export async function lookupPublicOrder(
       }
     }
   } catch (err) {
+    if (err instanceof Error && /too many requests/i.test(err.message)) throw err;
     console.warn('Live order lookup note:', err);
   }
 

@@ -20,6 +20,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { useBoutique } from '../components/SiteShell';
 import { lookupPublicOrder, getCustomerOrders } from '../lib/api';
+import { friendlyServerMessage } from '../lib/commerceLogic';
 import {
   formatEGP,
   computeOrderMilestones,
@@ -146,7 +147,7 @@ export default function TrackOrder() {
       setOrder(null);
       setErrorMessage(
         err instanceof Error
-          ? err.message
+          ? friendlyServerMessage(err.message, isAr)
           : isAr
           ? 'حدث خطأ أثناء البحث عن الطلب. يرجى المحاولة لاحقاً.'
           : 'Error looking up order. Please try again.'

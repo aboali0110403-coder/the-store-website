@@ -509,3 +509,16 @@ export function computeOrderMilestones(status: string): OrderMilestone[] {
     };
   });
 }
+
+/**
+ * Maps the server's rate-limit message to a customer-friendly sentence in the active language.
+ * Any other message is returned unchanged.
+ */
+export function friendlyServerMessage(message: string, isAr: boolean): string {
+  if (/too many requests/i.test(message)) {
+    return isAr
+      ? 'تم إرسال عدد كبير من الطلبات. يرجى المحاولة بعد قليل.'
+      : 'Too many requests were sent. Please try again in a little while.';
+  }
+  return message;
+}
