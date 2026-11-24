@@ -702,8 +702,8 @@ img { display: block; max-width: 100%; }
   .header-inner > .site-logo .wordmark span { font-size: 1.35rem; }
   .header-inner > .site-logo .wordmark small { font-size: 0.44rem; letter-spacing: .22em; margin-top: 0.14rem; }
   .header-actions { gap: 2px; }
-  .icon-button { width: 36px; height: 36px; }
-  .language-toggle { width: 32px; height: 32px; font-size: 0.8rem; margin-left: 2px; }
+  .icon-button { width: 44px; height: 44px; }
+  .language-toggle { width: 44px; height: 44px; font-size: 0.8rem; margin-left: 2px; }
   .hero-copy { padding: 36px 12px 30px; }
   .hero-copy h1 { font-size: clamp(1.85rem, 8vw, 2.5rem); }
   .product-card h3 { font-size: 1.05rem; }
