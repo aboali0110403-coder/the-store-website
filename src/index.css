@@ -1819,7 +1819,7 @@ body.admin-route .admin-page { min-height: auto; }
 /* Admin dashboard overview (reference-led): KPI cards, status breakdown, recent orders, low stock */
 .admin-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 18px 0 10px; }
 .admin-kpi-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-height: 96px; padding: 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); color: var(--ink); text-align: start; }
-.admin-kpi-card:hover { border-color: var(--olive); }
+.admin-kpi-card:hover { border-color: var(--plum); }
 .admin-kpi-label { color: var(--muted); font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; }
 body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label { letter-spacing: 0; text-transform: none; }
 .admin-kpi-value { color: var(--burgundy); font-family: var(--serif); font-size: 1.9rem; font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -1835,7 +1835,7 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .admin-status-row { display: grid; grid-template-columns: minmax(86px, auto) 1fr auto; align-items: center; gap: 10px; padding: 7px 0; }
 .admin-status-name { font-size: .92rem; }
 .admin-status-bar-wrap { height: 8px; border-radius: 4px; background: #eee5d8; overflow: hidden; }
-.admin-status-bar { display: block; height: 100%; border-radius: 4px; background: var(--olive); }
+.admin-status-bar { display: block; height: 100%; border-radius: 4px; background: var(--plum); }
 .admin-status-count { color: var(--burgundy); font-variant-numeric: tabular-nums; }
 .admin-recent-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px 12px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: start; }
 .admin-recent-row:last-child { border-bottom: 0; }
