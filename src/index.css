@@ -1956,12 +1956,14 @@ a { text-underline-offset: 3px; }
 /* Reference-led direction preview: calm cream/sand/olive surfaces */
 .announcement-bar { background: var(--rose); color: var(--ink); }
 .announcement-bar a { color: var(--plum); }
-.atelier-opening { grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr); }
-.atelier-feature { padding: 0; background: transparent; color: var(--ink); box-shadow: none; }
+@media (min-width: 851px) {
+  .atelier-opening { grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr); }
+  .atelier-feature { padding: 0; background: transparent; color: var(--ink); box-shadow: none; }
+  .atelier-feature-caption > div > span { color: var(--gold); }
+  .atelier-feature-caption h2 { color: var(--ink); }
+  .atelier-feature-caption p { color: var(--muted); }
+}
 .atelier-feature-image { box-shadow: 22px 30px 60px -34px rgba(63, 69, 48, 0.55); }
-.atelier-feature-caption > div > span { color: var(--gold); }
-.atelier-feature-caption h2 { color: var(--ink); }
-.atelier-feature-caption p { color: var(--muted); }
 .site-footer { background: var(--rose); color: var(--ink); }
 .footer-brand p { color: var(--muted); }
 .social-links a, .footer-column a { color: var(--muted); }
