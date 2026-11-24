@@ -461,8 +461,8 @@ export function computeOrderMilestones(status: string): OrderMilestone[] {
       key: 'received',
       titleEn: 'Order Received',
       titleAr: 'تم تسجيل الطلب',
-      descEn: 'Your artisanal garment request was recorded in our Cairo boutique system.',
-      descAr: 'تم استلام وتسجيل بيانات طلبك في نظام الدار بالقاهرة بنجاح.',
+      descEn: 'Your artisanal garment request was recorded in our boutique system.',
+      descAr: 'تم استلام وتسجيل بيانات طلبك في نظام الدار بنجاح.',
     },
     {
       step: 2,
@@ -485,8 +485,8 @@ export function computeOrderMilestones(status: string): OrderMilestone[] {
       key: 'shipped',
       titleEn: 'Out for Delivery',
       titleAr: 'تم التسليم لشركة الشحن',
-      descEn: 'Handed over to our specialized courier for safe doorstep delivery with inspection right.',
-      descAr: 'الطلب في عهدة مندوب الشحن المتخصص متوجهاً إلى عنوانك مع حق المعاينة.',
+      descEn: 'Handed over to the shipping courier, heading to your address with inspection right.',
+      descAr: 'الطلب في عهدة مندوب الشحن متوجهاً إلى عنوانك مع حق المعاينة.',
     },
     {
       step: 5,

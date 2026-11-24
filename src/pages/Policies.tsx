@@ -22,9 +22,9 @@ export default function Policies() {
     },
     returns: {
       title: 'Returns & Exchange Policy',
-      titleAr: 'سياسة الاستبدال والاسترجاع وحماية المستهلك',
-      description: 'Your rights under Egyptian Consumer Protection Law No. 181 of 2018.',
-      descriptionAr: 'حقوقك القانونية وفق قانون حماية المستهلك المصري رقم ١٨١ لسنة ٢٠١٨.',
+      titleAr: 'سياسة الاستبدال والاسترجاع',
+      description: 'Inspect your piece on delivery, then return or exchange per the terms below.',
+      descriptionAr: 'المعاينة عند الاستلام ثم الإرجاع أو الاستبدال حسب الشروط التالية.',
       icon: RotateCcw,
     },
     terms: {
@@ -58,7 +58,7 @@ export default function Policies() {
           <span className="eyebrow">
             <span className="eyebrow-line" />
             <Icon size={14} />
-            {isAr ? 'العناية بالعميلة والشفافية القانونية' : 'Customer Protection & Atelier Policies'}
+            {isAr ? 'العناية بالعميلة والشفافية' : 'Customer Protection & Atelier Policies'}
           </span>
           <h1>{isAr ? current.titleAr : current.title}</h1>
           <p>{isAr ? current.descriptionAr : current.description}</p>
@@ -90,8 +90,8 @@ export default function Policies() {
                   <h2>{isAr ? 'مواعيد وتغطية الشحن' : 'Delivery Coverage & Timelines'}</h2>
                   <p>
                     {isAr
-                      ? 'نوفر خدمة الشحن السريع لجميع محافظات جمهورية مصر العربية (٢٧ محافظة) عبر شركات شحن معتمدة وموثوقة.'
-                      : 'We provide expedited courier delivery across all 27 governorates of Egypt via trusted carriers.'}
+                      ? 'نوفر خدمة الشحن لجميع محافظات مصر.'
+                      : 'We deliver to governorates across Egypt.'}
                   </p>
                   <ul>
                     <li>
@@ -123,20 +123,20 @@ export default function Policies() {
             {slug === 'returns' && (
               <>
                 <section className="policy-section">
-                  <h2>{isAr ? 'حق الاسترجاع القانوني (١٤ يوماً)' : '14-Day Statutory Return Right'}</h2>
+                  <h2>{isAr ? 'المنتجات الجاهزة للشحن' : 'Ready-to-Ship Pieces'}</h2>
                   <p>
                     {isAr
-                      ? 'وفقاً للمادة ١٧ من قانون حماية المستهلك المصري رقم ١٨١ لسنة ٢٠١٨، يحق للمستهلك استبدال السلعة أو إعادتها واسترداد قيمتها النقدية خلال ١٤ يوماً من تاريخ الاستلام دون إبداء أسباب، بشرط أن تكون السلعة بحالتها الأصلية غير ملبوسة ومرفق بها كافة البطاقات والتغليف الأصلي.'
-                      : 'Under Article 17 of Egyptian Consumer Protection Law No. 181 of 2018, customers are entitled to return or exchange items within 14 days of receipt, provided the item is unworn with tags attached.'}
+                      ? 'يمكنكِ معاينة القطعة عند الاستلام، وإرجاعها أو استبدالها بمنتج آخر بعد المعاينة، على أن تتحملي تكاليف الشحن.'
+                      : 'You may inspect the piece on delivery, then return it or exchange it for another item. Shipping costs are covered by the customer.'}
                   </p>
                 </section>
 
                 <section className="policy-section">
-                  <h2>{isAr ? 'استثناءات السلع المصنعة حسب الطلب' : 'Exceptions for Bespoke Orders'}</h2>
+                  <h2>{isAr ? 'المنتجات المفصّلة حسب الطلب' : 'Made-to-Order Pieces'}</h2>
                   <p>
                     {isAr
-                      ? 'وفقاً للمادة ١٧ الفقرة (أ)، تُستثنى من حق الاسترجاع السلع التي صُنعت بناءً على طلب المستهلك أو وفقاً لمواصفات حددها بنفسه (طلبات التصميم الخاص)، إلا في حال وجود عيب صناعة غير مطابق للمواصفات المتفق عليها.'
-                      : 'Bespoke items tailored to custom measurements or specific personalized motifs are exempt from unconditional returns unless a manufacturing defect exists.'}
+                      ? 'يمكنكِ معاينة القطعة وتجربتها عند الاستلام. وإذا رغبتِ في إرجاعها فتتحملين تكلفة الشحن، ولا يُسترد العربون المدفوع (٣٠٪ من قيمة الطلب).'
+                      : 'You may inspect and try the piece on delivery. If you choose to return it, shipping costs are covered by the customer, and the 30% deposit paid is non-refundable.'}
                   </p>
                 </section>
               </>

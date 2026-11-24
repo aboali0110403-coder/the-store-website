@@ -236,8 +236,8 @@ export default function TrackOrder() {
             <h1>{isAr ? 'تتبع مسار طلبك التراثي' : 'Track Your Handcrafted Order'}</h1>
             <p>
               {isAr
-                ? 'تابعي مراحل تنفيذ طلبك من خيوط التطريز الأولى في ورشتنا بالقاهرة وحتى التسليم عند باب منزلك مع كامل حق الفحص والمعاينة.'
-                : 'Follow every stage of your order, from the initial hand-guided needlework at our Cairo atelier to doorstep delivery with full inspection privileges.'}
+                ? 'تابعي مراحل تنفيذ طلبك من خيوط التطريز الأولى في ورشتنا وحتى التسليم عند باب منزلك مع كامل حق الفحص والمعاينة.'
+                : 'Follow every stage of your order, from the initial hand-guided needlework at our atelier to doorstep delivery with full inspection privileges.'}
             </p>
 
             {/* Order Lookup Search Form */}
@@ -687,8 +687,8 @@ export default function TrackOrder() {
                   <h4>{isAr ? '٢. متابعة التطريز' : '2. Needlework Progress'}</h4>
                   <p>
                     {isAr
-                      ? 'يتم تحديث حالة القطعة لحظة بلحظة أثناء التفصيل وفحص الجودة في القاهرة.'
-                      : 'Status is updated live as our Cairo artisans guide silk threads and perform quality checks.'}
+                      ? 'يتم تحديث حالة القطعة لحظة بلحظة أثناء التفصيل وفحص الجودة في ورشتنا.'
+                      : 'Status is updated live as our artisans guide silk threads and perform quality checks.'}
                   </p>
                 </div>
 
@@ -699,8 +699,8 @@ export default function TrackOrder() {
                   <h4>{isAr ? '٣. شحن لجميع المحافظات' : '3. Doorstep Delivery'}</h4>
                   <p>
                     {isAr
-                      ? 'شحن سريع لـ ٢٧ محافظة مصرية مع حق المعاينة الكامل قبل سداد الدفع عند الاستلام.'
-                      : 'White-glove delivery across 27 Egyptian governorates with full preview inspection.'}
+                      ? 'الشحن لمحافظات مصر مع حق المعاينة الكامل قبل الدفع عند الاستلام.'
+                      : 'Delivery across Egypt with full inspection on delivery.'}
                   </p>
                 </div>
               </div>

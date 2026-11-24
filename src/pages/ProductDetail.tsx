@@ -328,7 +328,7 @@ export default function ProductDetail() {
                   {product.production === 'made-to-order'
                     ? isAr
                       ? 'يتم تنفيذ هذه القطعة خصيصاً بمقاساتك بعد مراجعة الطلب مع الأتيليه، ولا تخضع لقيود نفاذ المخزون الجاهز.'
-                      : 'Crafted individually to order by our Cairo artisans upon consultation; not limited by ready-made stock.'
+                      : 'Crafted individually to order by our artisans upon consultation; not limited by ready-made stock.'
                     : isAr
                     ? product.deliveryAr
                     : product.delivery}
