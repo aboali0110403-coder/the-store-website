@@ -41,7 +41,7 @@ print('wrong-phone lookups logged:',sh("select count(*) from public.guest_reques
 print('21st wrong-phone lookup:',sh("select public.lookup_public_order('MERO-1000','0999999999',null)",'anon','{"cf-connecting-ip":"5.5.5.5"}'))
 # 1: absent header not collapsed
 print('no header, distinct phones all ok:',[sh(f"select order_number from public.submit_store_order('A B','0100001{i:04d}',null,'{gov}','{area}','a',null,'cash_on_delivery','[{{\"product_id\":\"{pid}\",\"quantity\":1}}]'::jsonb)",'anon').split()[0] for i in range(20)][-3:])
-print('ip rows with null key:',sh("select count(*) from public.guest_request_log where kind='order_ip' and rkey is null"))
+print('guard rows with null key:',sh("select count(*) from public.guest_request_log where kind='order_ip' and rkey is null"))
 # 2: concurrency
 import threading
 res=[]
@@ -73,7 +73,7 @@ def mix(i):
     res.append('ok' if 'MERO' in r.stdout else 'blocked' if 'Too many' in r.stderr else 'deadlock/other:'+r.stderr[:100])
 th=[threading.Thread(target=mix,args=(i,)) for i in range(40)]
 [t.start() for t in th]; [t.join() for t in th]
-print('mixed-key concurrent orders (ip limit 15):',{k:res.count(k) for k in set(res)})
+print('mixed-key concurrent orders, shared IP header, no IP limit (expect all 40 ok):',{k:res.count(k) for k in set(res)})
 b=sh("select count(*) from public.guest_request_log")
 for i in range(300): subprocess.run(['psql',uri,'-At','-c',"set role anon;select public.lookup_public_order('MERO-9%05d','0100',null)"%i],capture_output=True)
 print('rows before/after 300 unknown-number lookups:',b,sh("select count(*) from public.guest_request_log"))
