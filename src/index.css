@@ -1615,6 +1615,12 @@ body.rtl .guide-grid,
 /* ==========================================================================
    Official Atelier Embroidered Logo Styles
    ========================================================================== */
+.footer-brand { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
+.footer-brand .wordmark { align-items: flex-start; }
+.footer-brand .wordmark span { font-size: 1.65rem; }
+.footer-brand .wordmark small { font-size: 0.5rem; margin-top: 0.35rem; }
+.footer-brand p, .footer-brand .social-links { flex-basis: 100%; }
+.footer-brand p { flex: 0 0 100%; max-width: none; box-sizing: border-box; padding-inline-end: max(0px, calc(100% - 260px)); }
 .footer-logo-wrap {
   display: inline-block;
   margin-bottom: 14px;
