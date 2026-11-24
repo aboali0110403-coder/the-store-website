@@ -1898,8 +1898,12 @@ body.rtl .guide-grid,
   line-height: 1.7;
 }
 .empty-checkout .solid-button {
-  width: min(320px, 100%);
+  width: auto;
+  min-width: min(320px, 100%);
+  max-width: 100%;
   justify-content: center;
+  padding-inline: 1.4rem;
+  white-space: nowrap;
 }
 
 /* Payment option label readability */
