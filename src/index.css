@@ -112,6 +112,28 @@ body.rtl .serif-editorial, .rtl .serif-editorial, [dir="rtl"] .serif-editorial {
   letter-spacing: normal;
 }
 
+/* Amiri has tall ascenders/diacritics: the tight Latin display leading (.9-.95) makes Arabic lines collide. Give every display heading Arabic-safe leading and drop negative tracking. */
+body.rtl .atelier-opening h1, .rtl .atelier-opening h1, [dir="rtl"] .atelier-opening h1,
+body.rtl .hero-copy h1, .rtl .hero-copy h1, [dir="rtl"] .hero-copy h1,
+body.rtl .section-heading-row h2, .rtl .section-heading-row h2, [dir="rtl"] .section-heading-row h2,
+body.rtl .section-heading-centered h2, .rtl .section-heading-centered h2, [dir="rtl"] .section-heading-centered h2,
+body.rtl .craft-main h2, .rtl .craft-main h2, [dir="rtl"] .craft-main h2,
+body.rtl .stats-intro h2, .rtl .stats-intro h2, [dir="rtl"] .stats-intro h2,
+body.rtl .newsletter-inner h2, .rtl .newsletter-inner h2, [dir="rtl"] .newsletter-inner h2,
+body.rtl .page-intro h1, .rtl .page-intro h1, [dir="rtl"] .page-intro h1,
+body.rtl .detail-title-row h1, .rtl .detail-title-row h1, [dir="rtl"] .detail-title-row h1,
+body.rtl .checkout-section-title h1, .rtl .checkout-section-title h1, [dir="rtl"] .checkout-section-title h1,
+body.rtl .checkout-section-title h2, .rtl .checkout-section-title h2, [dir="rtl"] .checkout-section-title h2,
+body.rtl .admin-topbar h1, .rtl .admin-topbar h1, [dir="rtl"] .admin-topbar h1,
+body.rtl .custom-design-aside h2, .rtl .custom-design-aside h2, [dir="rtl"] .custom-design-aside h2,
+body.rtl .policy-heading h1, .rtl .policy-heading h1, [dir="rtl"] .policy-heading h1,
+body.rtl .drawer-header h2, .rtl .drawer-header h2, [dir="rtl"] .drawer-header h2,
+body.rtl .atelier-feature-caption h2, .rtl .atelier-feature-caption h2, [dir="rtl"] .atelier-feature-caption h2,
+body.rtl .atelier-feature-empty p, .rtl .atelier-feature-empty p, [dir="rtl"] .atelier-feature-empty p {
+  line-height: 1.32;
+  letter-spacing: 0;
+}
+
 body.rtl .eyebrow, .rtl .eyebrow,
 body.rtl .solid-button, .rtl .solid-button,
 body.rtl .outline-button, .rtl .outline-button,
