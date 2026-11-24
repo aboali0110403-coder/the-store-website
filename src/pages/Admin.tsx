@@ -982,9 +982,9 @@ export default function Admin() {
               const days = Object.keys(byDay).sort();
               const vals = days.map((d) => byDay[d]);
               const maxV = Math.max(1, ...vals);
-              const pts = days.map((d, i) => [days.length === 1 ? 50 : (i / (days.length - 1)) * 100, 100 - (vals[i] / maxV) * 86 - 7]);
+              const pts = days.map((d, i) => [days.length === 1 ? 50 : (i / (days.length - 1)) * 100, 42 - (vals[i] / maxV) * 34]);
               const linePts = pts.map((p) => p.join(',')).join(' ');
-              const areaPts = `0,100 ${linePts} 100,100`;
+              const areaPts = `0,46 ${linePts} 100,46`;
               const sales: Record<string, number> = {};
               orders.forEach((o) => (((o as any).items || (o as any).order_items || []) as any[]).forEach((it) => {
                 const n = (isAr ? (it.product_name_ar || it.product_name_en) : (it.product_name_en || it.product_name_ar)) || '—';
@@ -1025,11 +1025,11 @@ export default function Admin() {
                   </div>
                   <div className="admin-dash-panels">
                     <div className="admin-dash-panel">
-                      <h3>{isAr ? 'إيراد الطلبات' : 'Order Revenue'}</h3>
+                      <h3>{isAr ? 'قيمة الطلبات' : 'Order Value'}</h3>
                       {!ordersLoaded ? (
                         <p className="admin-dash-empty">{isAr ? 'بيانات الطلبات غير متاحة.' : 'Order data unavailable.'}</p>
                       ) : days.length === 0 ? (
-                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. سيظهر منحنى الإيراد هنا فور وصول أول طلب.' : 'No orders yet. The revenue curve appears here as soon as the first order arrives.'}</p>
+                        <p className="admin-dash-empty">{isAr ? 'لا توجد طلبات بعد. سيظهر منحنى القيمة هنا فور وصول أول طلب.' : 'No orders yet. The value curve appears here as soon as the first order arrives.'}</p>
                       ) : (
                         <>
                           <svg viewBox="0 0 100 46" className="admin-rev-chart" preserveAspectRatio="none" role="img" aria-label={isAr ? 'منحنى قيمة الطلبات بالأيام' : 'Order value by day'}>
