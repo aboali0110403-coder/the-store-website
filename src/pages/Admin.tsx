@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, FormEvent } from 'react';
+import React, { useCallback, useEffect, useRef, useState, FormEvent } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -106,6 +106,10 @@ export default function Admin() {
   const [password, setPassword] = useState('');
   const [session, setSession] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  // True while the admin allowlist check is in flight, so a signed-in user is not shown "Unauthorized" before the check finishes.
+  const [verifying, setVerifying] = useState(false);
+  const [verifyFailed, setVerifyFailed] = useState(false);
+  const verifySeq = useRef(0);
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -261,21 +265,46 @@ export default function Admin() {
     }
   };
 
-  // Verify authentication and admin authorization
+  // Verify authentication and admin authorization.
+  // Fails closed: access is granted only when the allowlist query succeeds and returns a row.
+  // A query error is reported as a retryable verification failure, not as "not in the allowlist".
+  // Only the latest call may change state, so an older, slower call cannot overwrite a newer result.
   const verifyAccess = useCallback(async (userSession: any) => {
+    const seq = ++verifySeq.current;
+    const isLatest = () => seq === verifySeq.current;
+
     if (!userSession?.user) {
+      setVerifying(false);
       setIsAuthorized(false);
       return;
     }
 
+    setVerifying(true);
+    setVerifyFailed(false);
     try {
-      // Query admin_users allowlist
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('user_id')
-        .eq('user_id', userSession.user.id);
+      let data: any[] | null = null;
+      let failed = true;
+      for (let attempt = 0; attempt < 2 && failed; attempt++) {
+        const res = await supabase
+          .from('admin_users')
+          .select('user_id')
+          .eq('user_id', userSession.user.id);
+        if (!res.error) {
+          data = res.data;
+          failed = false;
+        }
+      }
+      if (!isLatest()) return;
 
-      if (error || !data || data.length === 0) {
+      if (failed) {
+        setVerifyFailed(true);
+        setIsAuthorized(false);
+        setAuthError(
+          isAr
+            ? 'تعذّر التحقق من صلاحيات الحساب الآن. حاولي مرة أخرى بعد لحظات.'
+            : 'Could not verify admin access right now. Please try again in a moment.'
+        );
+      } else if (!data || data.length === 0) {
         setIsAuthorized(false);
         setAuthError(
           isAr
@@ -287,8 +316,16 @@ export default function Admin() {
         setAuthError('');
       }
     } catch {
+      if (!isLatest()) return;
+      setVerifyFailed(true);
       setIsAuthorized(false);
-      setAuthError('Authorization check failed.');
+      setAuthError(
+        isAr
+          ? 'تعذّر التحقق من صلاحيات الحساب الآن. حاولي مرة أخرى بعد لحظات.'
+          : 'Could not verify admin access right now. Please try again in a moment.'
+      );
+    } finally {
+      if (isLatest()) setVerifying(false);
     }
   }, [isAr]);
 
@@ -303,7 +340,11 @@ export default function Admin() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) verifyAccess(session);
-      else setIsAuthorized(false);
+      else {
+        verifySeq.current++;
+        setVerifying(false);
+        setIsAuthorized(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -709,7 +750,10 @@ export default function Admin() {
   const activeDataKey = activeTab === 'overview' ? null : activeTab === 'gallery' || activeTab === 'variants' ? 'products' : activeTab;
   const activeReadState = activeDataKey ? readStates[activeDataKey] : undefined;
 
-  // UNAUTHORIZED STATE
+  // GATE STATE (sign-in, verifying, verification error, or denied)
+  const gateVerifying = Boolean(session) && verifying && !isAuthorized;
+  const gateDenied = Boolean(session) && !isAuthorized && !verifying && !verifyFailed;
+  const gateError = Boolean(session) && !isAuthorized && !verifying && verifyFailed;
   if (!session || !isAuthorized) {
     return (
       <main className="admin-page">
@@ -730,7 +774,7 @@ export default function Admin() {
 
           <div className="admin-gate">
             <div className="admin-gate-icon">
-              {session && !isAuthorized ? (
+              {gateDenied || gateError ? (
                 <ShieldAlert size={28} className="text-[#a34d55]" />
               ) : (
                 <ShieldCheck size={28} />
@@ -738,7 +782,15 @@ export default function Admin() {
             </div>
 
             <h2>
-              {session && !isAuthorized
+              {gateVerifying
+                ? isAr
+                  ? 'جارٍ التحقق من الصلاحيات'
+                  : 'Verifying access'
+                : gateError
+                ? isAr
+                  ? 'تعذّر التحقق'
+                  : 'Could not verify access'
+                : gateDenied
                 ? isAr
                   ? 'حساب غير مصرح له'
                   : 'Unauthorized Access'
@@ -748,7 +800,15 @@ export default function Admin() {
             </h2>
 
             <p>
-              {session && !isAuthorized
+              {gateVerifying
+                ? isAr
+                  ? 'لحظات من فضلك، نتحقق من صلاحيات حسابك.'
+                  : 'One moment while we check your account.'
+                : gateError
+                ? isAr
+                  ? 'أنت مسجل الدخول، لكن تعذّر التحقق من الصلاحيات الآن. سجّلي الخروج وحاولي مرة أخرى.'
+                  : 'You are signed in, but access could not be verified right now. Sign out and try again.'
+                : gateDenied
                 ? isAr
                   ? 'أنت مسجل الدخول، لكن حسابك غير موجود في قائمة مسؤولي المتجر. تم تقييد كافة الصلاحيات الإدارية وفق سياسات RLS.'
                   : 'Your account is authenticated, but not in the store admin allowlist. Administrative privileges are strictly enforced by RLS.'
