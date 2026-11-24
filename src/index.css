@@ -2213,3 +2213,8 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .text-link { min-height: 32px; }
 .announcement-track-link { display: inline-flex; align-items: center; min-height: 24px; }
 .product-meta strong { white-space: nowrap; }
+
+/* Admin: larger hit areas for small text buttons, links and checkboxes (layout unchanged) */
+.admin-hit { display: inline-flex; align-items: center; min-height: 32px; padding-inline: 6px; }
+body.admin-route input[type="checkbox"] { width: 18px; height: 18px; }
+body.admin-route a.underline { display: inline-flex; align-items: center; min-height: 28px; }
