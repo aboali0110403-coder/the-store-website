@@ -667,6 +667,8 @@ img { display: block; max-width: 100%; }
   .checkout-header { grid-template-columns: 1fr auto; }
   .checkout-wordmark { display: none; }
   .page-intro-inner { flex-direction: column; align-items: flex-start; }
+  .page-intro-inner > * { max-width: 100%; }
+  .page-intro h1 { font-size: clamp(2.2rem, 10vw, 3rem); }
   .shop-toolbar { flex-wrap: wrap; }
   .search-field { flex: 1 1 100%; min-width: 0; }
   .search-field input { min-width: 0; }
