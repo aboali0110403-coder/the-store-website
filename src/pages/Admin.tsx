@@ -2234,7 +2234,7 @@ export default function Admin() {
                         <>
                           <button
                             type="button"
-                            className="text-xs p-1 border font-semibold bg-[#3f4530] text-white"
+                            className="text-xs p-1 border font-semibold bg-[#3f4530] text-white" style={{ color: '#f6f2e9' }}
                             onClick={() => handleUpdateOrderStatus(o.id, pendingOrderStatus[o.id])}
                           >
                             {isAr ? 'تأكيد الحفظ' : 'Confirm save'}
