@@ -2247,3 +2247,22 @@ body.rtl .admin-kpi-label, .rtl .admin-kpi-label, [dir="rtl"] .admin-kpi-label {
 .admin-hit { display: inline-flex; align-items: center; min-height: 32px; padding-inline: 6px; }
 body.admin-route input[type="checkbox"] { width: 24px; height: 24px; }
 body.admin-route a.underline { display: inline-flex; align-items: center; min-height: 28px; }
+
+/* WhatsApp contact button */
+.whatsapp-fab {
+  position: fixed;
+  inset-inline-end: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #1fa855;
+  color: #fffdf8;
+  box-shadow: 0 10px 24px rgba(44, 42, 35, .28);
+  transition: transform .18s ease, background .18s ease;
+}
+.whatsapp-fab:hover { background: #25c05e; transform: translateY(-2px); }
+.whatsapp-fab:focus-visible { outline: 2px solid var(--burgundy); outline-offset: 3px; }

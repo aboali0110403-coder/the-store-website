@@ -30,7 +30,8 @@ import {
   getCategoriesReadStatus,
   CatalogReadStatus,
 } from '../lib/api';
-import { formatEGP, mergeCartItems } from '../lib/commerceLogic';
+import { mergeCartItems } from '../lib/commerceLogic';
+import WhatsAppButton, { WhatsAppIcon, whatsappHref } from './WhatsAppButton';
 
 interface BoutiqueContextType {
   language: Language;
@@ -464,7 +465,6 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
                             {item.size} · {item.color}
                           </p>
                           <div className="cart-item-bottom">
-                            <span>{formatEGP(product.price, language)}</span>
                             <div className="quantity-control">
                               <button
                                 type="button"
@@ -494,10 +494,6 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 </div>
 
                 <div className="drawer-summary">
-                  <div>
-                    <span>{isAr ? 'المجموع قبل الشحن' : 'Subtotal before shipping'}</span>
-                    <strong>{formatEGP(cartTotal, language)}</strong>
-                  </div>
                   <p>
                     {isAr
                       ? 'يُحسب الشحن بدقة حسب المحافظة في خطوة إتمام الطلب.'
@@ -517,6 +513,8 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
           </aside>
         </div>
       )}
+
+      <WhatsAppButton language={language} />
 
       {/* Luxury Footer */}
       <footer className="site-footer">
@@ -543,6 +541,9 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               </a>
               <a href="mailto:meroboutique7@gmail.com" className="email-address" aria-label="Email Concierge">
                 <Mail size={17} />
+              </a>
+              <a href={whatsappHref(language)} target="_blank" rel="noreferrer" aria-label={isAr ? 'واتساب' : 'WhatsApp'}>
+                <WhatsAppIcon size={17} />
               </a>
             </div>
           </div>
