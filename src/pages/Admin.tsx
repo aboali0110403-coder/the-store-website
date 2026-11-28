@@ -819,7 +819,7 @@ export default function Admin() {
                   <input
                     type="email"
                     required
-                    placeholder="owner@meroboutique.com"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

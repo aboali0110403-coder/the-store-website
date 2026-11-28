@@ -294,6 +294,7 @@ html[dir="rtl"] .main-nav .wordmark span {
 .outline-button { background: transparent; color: var(--burgundy); }
 .outline-button:hover { background: var(--burgundy); color: var(--ivory); transform: translateY(-2px); }
 .text-link { display: inline-flex; align-items: center; gap: 7px; color: var(--burgundy); font-size: 0.9rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.email-address { text-transform: none; letter-spacing: .02em; }
 .text-link:hover { color: var(--plum); }
 .hero-note { display: flex; align-items: center; gap: 14px; margin-top: 55px; color: var(--muted); font-family: var(--serif); font-size: 1.18rem; font-style: italic; }
 .hero-note-mark { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--gold); border-radius: 50%; color: var(--burgundy); font-family: var(--serif); font-style: normal; font-size: 1.05rem; flex-shrink: 0; }

@@ -187,10 +187,10 @@ export default function Policies() {
                   : 'Our concierge team is available to help with sizing, fabric advice, or tracking.'}
               </p>
               <a
-                href="mailto:concierge@meroboutique.com"
-                className="text-link"
+                href="mailto:meroboutique7@gmail.com"
+                className="text-link email-address"
               >
-                concierge@meroboutique.com
+                meroboutique7@gmail.com
               </a>
             </div>
           </article>
