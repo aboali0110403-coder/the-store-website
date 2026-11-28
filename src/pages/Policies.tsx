@@ -188,7 +188,7 @@ export default function Policies() {
               </p>
               <a
                 href="mailto:meroboutique7@gmail.com"
-                className="text-link"
+                className="text-link email-address"
               >
                 meroboutique7@gmail.com
               </a>
