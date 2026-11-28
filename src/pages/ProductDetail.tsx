@@ -32,7 +32,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (!product) return;
-    document.title = `${isAr ? product.nameAr : product.name} | Mero Boutique`;
+    document.title = `${isAr ? product.nameAr : product.name} | Mariama`;
   }, [product, isAr]);
 
   useEffect(() => {
@@ -220,7 +220,7 @@ export default function ProductDetail() {
           <div className="product-detail-copy">
             <span className="eyebrow">
               <span className="eyebrow-line" />
-              {isAr ? product.categoryAr : product.category} · MERO ATELIER
+              {isAr ? product.categoryAr : product.category} · MARIAMA ATELIER
             </span>
 
             <div className="detail-title-row">

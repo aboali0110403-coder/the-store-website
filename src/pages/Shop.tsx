@@ -77,12 +77,12 @@ export default function Shop() {
           <div>
             <span className="eyebrow">
               <span className="eyebrow-line" />
-              {isAr ? 'كتالوج ميرو الفاخر' : 'The Mero Boutique Catalog'}
+              {isAr ? 'كتالوج مريمة الفاخر' : 'The Mariama Catalog'}
             </span>
             <h1>{isAr ? 'مجموعات الأزياء الراقية' : 'Artisanal Collections'}</h1>
             <p>
               {isAr
-                ? 'استكشفي أزياء ميرو المتميزة بالتطريز اليدوي والتصاميم الراقية المصنوعة في مصر بأعلى معايير الإتقان.'
+                ? 'استكشفي أزياء مريمة المتميزة بالتطريز اليدوي والتصاميم الراقية المصنوعة في مصر بأعلى معايير الإتقان.'
                 : 'Explore refined Egyptian handcrafted dresses, kaftans, abayas, and coordinated sets tailored for enduring grace.'}
             </p>
           </div>

@@ -746,10 +746,10 @@ export default function Admin() {
         <div className="container admin-shell">
           <div className="admin-topbar">
             <div className="flex items-center gap-3">
-              <img src="/mero-logo-256.png" alt="Mero Boutique" className="admin-logo-img" />
+              <img src="/mero-logo-256.png" alt="Mariama" className="admin-logo-img" />
               <div>
-                <span className="eyebrow">MERO / SECURITY BOUNDARY</span>
-                <h1>{isAr ? 'بوابة إدارة ميرو بوتيك' : 'Atelier Administration'}</h1>
+                <span className="eyebrow">MARIAMA / SECURITY BOUNDARY</span>
+                <h1>{isAr ? 'بوابة إدارة مريمة' : 'Atelier Administration'}</h1>
               </div>
             </div>
             <div className="admin-status">
@@ -853,9 +853,9 @@ export default function Admin() {
         {/* Topbar */}
         <div className="admin-topbar">
           <div className="flex items-center gap-3">
-            <img src="/mero-logo.png" alt="Mero Boutique" className="admin-logo-img" />
+            <img src="/mero-logo.png" alt="Mariama" className="admin-logo-img" />
             <div>
-              <span className="eyebrow">{isAr ? 'ميرو / لوحة المالك' : 'MERO / OWNER WORKBENCH'}</span>
+              <span className="eyebrow">{isAr ? 'مريمة / لوحة المالك' : 'MARIAMA / OWNER WORKBENCH'}</span>
               <h1>{isAr ? 'مساحة عمل المشغل' : 'Atelier Workbench'}</h1>
             </div>
           </div>

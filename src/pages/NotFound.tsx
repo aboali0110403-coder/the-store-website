@@ -9,7 +9,7 @@ export default function NotFound() {
   return (
     <main className="not-found-page">
       <div className="not-found-card">
-        <span className="eyebrow">MERO BOUTIQUE · 404</span>
+        <span className="eyebrow">MARIAMA · 404</span>
         <h1>{isAr ? 'الصفحة غير موجودة' : 'Page Not Found'}</h1>
         <p>
           {isAr

@@ -277,7 +277,7 @@ export default function Checkout() {
           <div className="confirmation-mark">
             <CheckCircle2 size={32} />
           </div>
-          <span className="eyebrow">MERO BOUTIQUE · ATELIER</span>
+          <span className="eyebrow">MARIAMA · ATELIER</span>
           <h1>{isAr ? 'تم استلام طلبك بنجاح' : 'Order Received'}</h1>
           <p>
             {isAr
@@ -315,7 +315,7 @@ export default function Checkout() {
             </Link>
             <a
               href={`https://wa.me/?text=${encodeURIComponent(
-                `Hello Mero Boutique, I have submitted order #${completedOrder.order_number} for delivery to ${completedOrder.governorate}.`
+                `Hello Mariama, I have submitted order #${completedOrder.order_number} for delivery to ${completedOrder.governorate}.`
               )}`}
               target="_blank"
               rel="noreferrer"
@@ -345,7 +345,7 @@ export default function Checkout() {
     return (
       <main className="empty-checkout">
         <ShoppingBag size={34} strokeWidth={1.2} />
-        <span className="eyebrow">MERO BOUTIQUE</span>
+        <span className="eyebrow">MARIAMA</span>
         <h1>{isAr ? 'حقيبة التسوق فارغة' : 'Your bag is empty'}</h1>
         <p>{isAr ? 'أضيفي بعض الإبداعات الحصرية إلى حقيبتك قبل بدء الطلب.' : 'Select a handcrafted piece before starting checkout.'}</p>
         <Link href="/shop" className="solid-button">
@@ -363,8 +363,8 @@ export default function Checkout() {
           {isAr ? 'العودة للمتجر' : 'Back to shop'}
         </Link>
         <Link href="/" className="checkout-logo-brand">
-          <img src="/mero-logo.png" alt="Mero Boutique" className="checkout-logo-img" />
-          <span>MERO / GUEST CHECKOUT</span>
+          <img src="/mero-logo.png" alt="Mariama" className="checkout-logo-img" />
+          <span>MARIAMA / GUEST CHECKOUT</span>
         </Link>
         <div className="secure-label">
           <ShieldCheck size={14} />
@@ -600,7 +600,7 @@ export default function Checkout() {
         {/* Order Summary & Coupon Workflow */}
         <aside className="order-summary">
           <div className="summary-heading">
-            <span className="eyebrow">MERO / ORDER</span>
+            <span className="eyebrow">MARIAMA / ORDER</span>
             <h2>{isAr ? 'ملخص الطلب' : 'Summary'}</h2>
           </div>
 

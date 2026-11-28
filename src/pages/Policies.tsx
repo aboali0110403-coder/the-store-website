@@ -38,7 +38,7 @@ export default function Policies() {
     privacy: {
       title: 'Privacy & Data Protection',
       titleAr: 'سياسة الخصوصية وحماية بيانات العملاء',
-      description: 'How Mero Boutique safeguards your personal and delivery data.',
+      description: 'How Mariama safeguards your personal and delivery data.',
       descriptionAr: 'التزامنا الكامل بسرية بيانات التوصيل والاتصال الخاصة بكِ.',
       icon: ShieldCheck,
     },
@@ -115,7 +115,7 @@ export default function Policies() {
                   <h2>{isAr ? 'حق المعاينة والفحص عند الاستلام' : 'Inspection on Delivery'}</h2>
                   <p>
                     {isAr
-                      ? 'تضمن ميرو بوتيك لجميع عميلاتها حق فتح الشحنة وفحص القطعة والتأكد من مطابقة المقاس ونقاء التطريز اليدوي قبل دفع القيمة للمندوب.'
+                      ? 'تضمن مريمة لجميع عميلاتها حق فتح الشحنة وفحص القطعة والتأكد من مطابقة المقاس ونقاء التطريز اليدوي قبل دفع القيمة للمندوب.'
                       : 'Patrons have the full right to open and inspect the piece before completing cash payment.'}
                   </p>
                 </section>
@@ -183,7 +183,7 @@ export default function Policies() {
               <strong>{isAr ? 'هل لديكِ أي استفسار؟' : 'Need Personal Assistance?'}</strong>
               <p>
                 {isAr
-                  ? 'فريق خدمة عملاء ميرو بوتيك متاح للرد على استفساراتك بشأن المقاسات ومواعيد الشحن.'
+                  ? 'فريق خدمة عملاء مريمة متاح للرد على استفساراتك بشأن المقاسات ومواعيد الشحن.'
                   : 'Our concierge team is available to help with sizing, fabric advice, or tracking.'}
               </p>
               <a

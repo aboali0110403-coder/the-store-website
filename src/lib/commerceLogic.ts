@@ -1,5 +1,5 @@
 /**
- * Pure e-commerce calculations, validations, and security logic for Mero Boutique.
+ * Pure e-commerce calculations, validations, and security logic for Mariama.
  * Fully decoupled from UI/DOM for fast, deterministic unit testing.
  */
 
@@ -431,7 +431,7 @@ export interface OrderMilestone {
 }
 
 /**
- * Derives structured 5-milestone progression for Mero Boutique orders based on status.
+ * Derives structured 5-milestone progression for Mariama orders based on status.
  */
 export function computeOrderMilestones(status: string): OrderMilestone[] {
   const normalizedStatus = (status || 'pending').toLowerCase().trim();

@@ -477,9 +477,9 @@ export const collections = [
   },
   {
     title: 'Signature Siwan Motifs',
-    titleAr: 'تطريز ميرو السيوِي التراثي',
-    text: 'The motifs that make a Mero piece unmistakably an Egyptian artwork.',
-    textAr: 'الزخارف التي تمنح قطعة ميرو هويتها الخاصة كعمل فني مصري.',
+    titleAr: 'تطريز مريمة السيوِي التراثي',
+    text: 'The motifs that make a Mariama piece unmistakably an Egyptian artwork.',
+    textAr: 'الزخارف التي تمنح قطعة مريمة هويتها الخاصة كعمل فني مصري.',
     image: imageUrls.golden,
     count: '4 pieces',
   },
