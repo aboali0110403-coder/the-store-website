@@ -541,7 +541,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               <a href="https://www.instagram.com/mariam.designer_?evlk=aW4xcHYwZW1pOHBh" target="_blank" rel="noreferrer" aria-label="Instagram">
                 <Instagram size={17} />
               </a>
-              <a href="mailto:concierge@meroboutique.com" aria-label="Email Concierge">
+              <a href="mailto:meroboutique7@gmail.com" aria-label="Email Concierge">
                 <Mail size={17} />
               </a>
             </div>
