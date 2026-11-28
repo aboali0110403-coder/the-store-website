@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Route, Switch } from 'wouter';
 import { BoutiqueProvider } from './components/SiteShell';
 import RouteMeta from './components/RouteMeta';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import NotFound from './pages/NotFound';
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <BoutiqueProvider>
       <RouteMeta />
+      <ScrollToTop />
       <Suspense fallback={<RouteLoadingFallback />}>
         <Switch>
           <Route path="/" component={Home} />
