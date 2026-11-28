@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'wouter';
 import { ArrowRight, Heart, Plus } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
-import { formatEGP } from '../lib/commerceLogic';
 
 export default function Home() {
   const { language, products, categories, toggleWishlist, isWishlisted, addToBag, loadingCatalog, catalogReadStatus } = useBoutique();
@@ -58,7 +57,7 @@ export default function Home() {
               <Link href={`/shop/${featured.slug}`} className="atelier-feature-chip-text" aria-label={`${isAr ? featured.nameAr : featured.name} — ${isAr ? 'عرض التفاصيل' : 'view piece'}`}>
                 <span>{isAr ? 'من الكتالوج المنشور' : 'From the published catalog'}</span>
                 <strong>{isAr ? featured.nameAr : featured.name}</strong>
-                <em>{formatEGP(featured.price, language)} <span aria-hidden="true">·</span> {isAr ? featured.categoryAr : featured.category}</em>
+                <em>{isAr ? featured.categoryAr : featured.category}</em>
               </Link>
               <button
                 type="button"
@@ -132,8 +131,7 @@ export default function Home() {
                 <div className="atelier-piece-copy">
                   <span>{isAr ? product.categoryAr : product.category}</span>
                   <h3><Link href={`/shop/${product.slug}`}>{isAr ? product.nameAr : product.name}</Link></h3>
-                  <strong>{formatEGP(product.price, language)}</strong>
-                </div>
+                  </div>
                 <button
                   type="button"
                   className="atelier-add"

@@ -3,7 +3,6 @@ import { Link, useLocation } from 'wouter';
 import { Search, SlidersHorizontal, Heart, Plus, Sparkles } from 'lucide-react';
 import { useBoutique } from '../components/SiteShell';
 import { Product } from '../lib/store';
-import { formatEGP } from '../lib/commerceLogic';
 
 export default function Shop() {
   const { language, products, categories: catalogCategories, toggleWishlist, isWishlisted, addToBag, catalogReadStatus, loadingCatalog } = useBoutique();
@@ -128,9 +127,7 @@ export default function Shop() {
               onChange={(e) => setSortBy(e.target.value as any)}
             >
               <option value="featured">{isAr ? 'الأكثر تميزاً' : 'Featured'}</option>
-              <option value="price-asc">{isAr ? 'السعر: من الأقل للأعلى' : 'Price: Low to High'}</option>
-              <option value="price-desc">{isAr ? 'السعر: من الأعلى للأقل' : 'Price: High to Low'}</option>
-              <option value="newest">{isAr ? 'أحدث الإضافات' : 'Newest'}</option>
+                                          <option value="newest">{isAr ? 'أحدث الإضافات' : 'Newest'}</option>
             </select>
           </div>
         </div>
@@ -320,7 +317,6 @@ export default function Shop() {
                         </div>
                         <p>{isAr ? product.categoryAr : product.category}</p>
                         <div className="product-meta">
-                          <strong>{formatEGP(product.price, language)}</strong>
                           <span
                             className={`text-[11px] sm:text-xs ${
                               isSoldOut

@@ -14,7 +14,6 @@ import { useBoutique } from '../components/SiteShell';
 import { Product, ProductGalleryImage } from '../lib/store';
 import { fetchProductBySlug } from '../lib/api';
 import { getProductSpecificationRows } from '../lib/productPresentation';
-import { formatEGP } from '../lib/commerceLogic';
 
 export default function ProductDetail() {
   const [, params] = useRoute('/shop/:slug');
@@ -233,20 +232,6 @@ export default function ProductDetail() {
               >
                 <Heart size={18} fill={wish ? 'currentColor' : 'none'} />
               </button>
-            </div>
-
-            <div className="detail-price-row">
-              <strong>{formatEGP(product.price, language)}</strong>
-              {product.compareAt && (
-                <span className="line-through text-[#806f77] text-sm">
-                  {formatEGP(product.compareAt, language)}
-                </span>
-              )}
-              {product.compareAt && (
-                <span className="text-[11px] text-[#567c4b] font-semibold uppercase tracking-wider">
-                  {isAr ? 'سعر خاص' : 'Privilege Price'}
-                </span>
-              )}
             </div>
 
             <p className="detail-description">{isAr ? product.descriptionAr : product.description}</p>
@@ -470,10 +455,7 @@ export default function ProductDetail() {
                       <Link href={`/shop/${rel.slug}`}>{isAr ? rel.nameAr : rel.name}</Link>
                     </h3>
                     <p>{isAr ? rel.categoryAr : rel.category}</p>
-                    <div className="product-meta">
-                      <strong>{formatEGP(rel.price, language)}</strong>
-                    </div>
-                  </div>
+                                      </div>
                 </article>
               ))}
             </div>
