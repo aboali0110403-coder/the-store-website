@@ -303,8 +303,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               className="site-logo-img"
             />
             <div className="wordmark">
-              <span>MARIAMA</span>
-              <small>BOUTIQUE</small>
+              <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
             </div>
           </Link>
 
@@ -367,8 +366,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
                   style={{ height: '40px' }}
                 />
                 <span className="wordmark">
-                  <span>MARIAMA</span>
-                  <small>BOUTIQUE</small>
+                  <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
                 </span>
               </Link>
               <button
@@ -532,8 +530,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               />
             </Link>
             <div className="wordmark wordmark-light">
-              <span>MARIAMA</span>
-              <small>BOUTIQUE</small>
+              <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
             </div>
             <p>
               {isAr

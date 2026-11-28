@@ -255,12 +255,14 @@ img { display: block; max-width: 100%; }
 .site-logo-img { height: 54px; width: auto; transition: transform .25s ease; flex-shrink: 0; }
 .site-logo:hover .site-logo-img { transform: scale(1.05); }
 .wordmark { display: inline-flex; flex-direction: column; align-items: center; width: max-content; color: var(--burgundy); line-height: .9; direction: ltr; }
-.wordmark span { font-family: "Fraunces", Georgia, serif; font-size: 2.15rem; font-weight: 600; letter-spacing: .12em; margin-inline-end: -.12em; line-height: 1; }
+.wordmark span { font-family: var(--serif); --wm-size: 2.15rem; font-size: var(--wm-size); font-weight: 600; letter-spacing: .12em; margin-inline-end: -.12em; line-height: 1; }
+/* Arabic lockup: Amiri via --serif, no tracking (it breaks joins), a touch larger to match Latin weight */
+body.rtl .wordmark span, [dir="rtl"] .wordmark span { letter-spacing: 0; margin-inline-end: 0; font-size: calc(var(--wm-size, 2.15rem) * 1.5); font-weight: 700; line-height: 1.15; }
 .wordmark small { margin-top: 0.45rem; font-family: "Inter", ui-sans-serif, system-ui, sans-serif; font-size: 0.52rem; letter-spacing: .45em; margin-inline-end: -.45em; line-height: 1.4; }
 .wordmark-light { color: var(--ivory); }
 
 .main-nav { display: flex; align-items: center; justify-content: center; gap: clamp(0.9rem, 1.8vw, 1.75rem); }
-.main-nav a { position: relative; padding: 0.65rem 0; color: var(--muted); font-size: 0.94rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 500; transition: color .2s ease; }
+.main-nav a { position: relative; padding: 0.65rem 0; color: var(--muted); font-size: 0.94rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; transition: color .2s ease; }
 .main-nav a::after { position: absolute; right: 0; bottom: 4px; left: 0; height: 1px; background: var(--gold); content: ""; transform: scaleX(0); transform-origin: right; transition: transform .22s ease; }
 .main-nav a:hover, .main-nav a.active { color: var(--burgundy); }
 .main-nav a:hover::after, .main-nav a.active::after { transform: scaleX(1); transform-origin: left; }
@@ -606,6 +608,21 @@ img { display: block; max-width: 100%; }
 
 .form-success { margin: 1rem 0; padding: 0.9rem 1rem; border: 1px solid rgba(64, 120, 82, 0.28); background: rgba(64, 120, 82, 0.08); color: #315b3e; font-size: 0.98rem; line-height: 1.7; }
 
+/* Desktop header: keep the nav on one line now that the wordmark is longer */
+@media (min-width: 1081px) and (max-width: 1199px) {
+  .header-inner { gap: 14px; }
+  .header-inner > .site-logo .wordmark span { --wm-size: 1.8rem; font-size: var(--wm-size); }
+  .main-nav { gap: 0.5rem; }
+  .main-nav a { font-size: 0.72rem; letter-spacing: .04em; }
+}
+
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .header-inner { gap: 18px; }
+  .header-inner > .site-logo .wordmark span { --wm-size: 1.9rem; font-size: var(--wm-size); }
+  .main-nav { gap: clamp(0.6rem, 1vw, 1.1rem); }
+  .main-nav a { font-size: 0.84rem; letter-spacing: .05em; }
+}
+
 /* Responsive adjustments */
 @media (max-width: 1080px) {
   .header-inner { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; }
@@ -621,7 +638,7 @@ img { display: block; max-width: 100%; }
   .desktop-only { display: none; }
   .header-inner > .site-logo { justify-self: center; }
   .header-inner > .site-logo .site-logo-img { height: 46px; }
-  .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
+  .header-inner > .site-logo .wordmark span { --wm-size: 1.65rem; font-size: var(--wm-size); }
   .header-inner > .site-logo .wordmark small { margin-top: 0.28rem; font-size: 0.52rem; letter-spacing: .4em; margin-inline-end: -.4em; }
   .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 2px; padding: 12px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(63,69,48,.15); transform: translateX(-105%); transition: transform .25s ease; }
   .main-nav { overflow-y: auto; overscroll-behavior: contain; }
@@ -640,7 +657,7 @@ img { display: block; max-width: 100%; }
   .desktop-only { display: none; }
   .header-inner > .site-logo { justify-self: center; }
   .header-inner > .site-logo .site-logo-img { height: 46px; }
-  .header-inner > .site-logo .wordmark span { font-size: 1.65rem; }
+  .header-inner > .site-logo .wordmark span { --wm-size: 1.65rem; font-size: var(--wm-size); }
   .header-inner > .site-logo .wordmark small { margin-top: 0.28rem; font-size: 0.52rem; letter-spacing: .4em; margin-inline-end: -.4em; }
   .main-nav { position: fixed; top: 0; left: 0; z-index: 35; display: flex; width: min(320px, 85vw); height: 100vh; align-items: flex-start; flex-direction: column; justify-content: flex-start; gap: 6px; padding: 22px 24px; background: var(--ivory); box-shadow: 12px 0 30px rgba(63,69,48,.15); transform: translateX(-105%); transition: transform .25s ease; }
   .main-nav.is-open { transform: translateX(0); }
@@ -700,7 +717,7 @@ img { display: block; max-width: 100%; }
   .header-inner { width: calc(100% - 16px); min-height: 60px; grid-template-columns: 36px 1fr auto; gap: 6px; }
   .header-inner > .site-logo { gap: 9px; }
   .header-inner > .site-logo .site-logo-img { height: 40px; width: auto; }
-  .header-inner > .site-logo .wordmark span { font-size: 1.05rem; letter-spacing: .08em; margin-inline-end: -.08em; }
+  .header-inner > .site-logo .wordmark span { --wm-size: 1.05rem; font-size: var(--wm-size); letter-spacing: .08em; margin-inline-end: -.08em; }
   .header-inner > .site-logo .wordmark small { font-size: 0.4rem; letter-spacing: .2em; margin-top: 0.12rem; margin-inline-end: -.2em; }
   .header-actions { gap: 2px; }
   .icon-button { width: 44px; height: 44px; }
@@ -1616,7 +1633,7 @@ body.rtl .guide-grid,
    ========================================================================== */
 .footer-brand { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
 .footer-brand .wordmark { align-items: flex-start; }
-.footer-brand .wordmark span { font-size: 1.65rem; }
+.footer-brand .wordmark span { --wm-size: 1.65rem; font-size: var(--wm-size); }
 .footer-brand .wordmark small { font-size: 0.5rem; margin-top: 0.35rem; }
 .footer-brand p, .footer-brand .social-links { flex-basis: 100%; }
 .footer-brand p { flex: 0 0 100%; max-width: none; box-sizing: border-box; padding-inline-end: max(0px, calc(100% - 260px)); }
