@@ -257,7 +257,17 @@ img { display: block; max-width: 100%; }
 .wordmark { display: inline-flex; flex-direction: column; align-items: center; width: max-content; color: var(--burgundy); line-height: .9; direction: ltr; }
 .wordmark span { font-family: var(--serif); --wm-size: 2.15rem; font-size: var(--wm-size); font-weight: 600; letter-spacing: .12em; margin-inline-end: -.12em; line-height: 1; }
 /* Arabic lockup: Amiri via --serif, no tracking (it breaks joins), a touch larger to match Latin weight */
-body.rtl .wordmark span, [dir="rtl"] .wordmark span { letter-spacing: 0; margin-inline-end: 0; font-size: calc(var(--wm-size, 2.15rem) * 1.5); font-weight: 700; line-height: 1.15; }
+/* Arabic lockup: Amiri via --serif, no tracking (it breaks joins), scaled up to sit at the same visual weight as the Latin wordmark */
+html[dir="rtl"] .header-inner .site-logo .wordmark span,
+html[dir="rtl"] .footer-brand .wordmark span,
+html[dir="rtl"] .main-nav .wordmark span {
+  font-family: "Amiri", "Fraunces", Georgia, serif;
+  letter-spacing: 0;
+  margin-inline-end: 0;
+  font-weight: 700;
+  line-height: 1.2;
+  font-size: calc(var(--wm-size, 2.15rem) * 1.8);
+}
 .wordmark small { margin-top: 0.45rem; font-family: "Inter", ui-sans-serif, system-ui, sans-serif; font-size: 0.52rem; letter-spacing: .45em; margin-inline-end: -.45em; line-height: 1.4; }
 .wordmark-light { color: var(--ivory); }
 
