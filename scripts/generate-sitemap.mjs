@@ -2,7 +2,7 @@
 // Never fails the build: on any problem the committed sitemap is left as it is.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const ORIGIN = 'https://mero-boutique.vercel.app';
+const ORIGIN = 'https://mariama-atelier.vercel.app';
 const FILE = new URL('../public/sitemap.xml', import.meta.url);
 const url = process.env.VITE_SUPABASE_URL;
 const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;

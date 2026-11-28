@@ -231,7 +231,7 @@ export default function TrackOrder() {
           <div className="tracking-hero-content">
             <span className="eyebrow">
               <span className="eyebrow-line" />
-              {isAr ? 'خدمة عملاء أتيليه ميرو' : 'MERO ATELIER CONCIERGE'}
+              {isAr ? 'خدمة عملاء أتيليه مريمة' : 'MARIAMA ATELIER CONCIERGE'}
               <span className="eyebrow-line" />
             </span>
             <h1>{isAr ? 'تتبع مسار طلبك التراثي' : 'Track Your Handcrafted Order'}</h1>
@@ -367,7 +367,7 @@ export default function TrackOrder() {
                 <div className="error-actions">
                   <a
                     href={`https://wa.me/?text=${encodeURIComponent(
-                      `Hello Mero Boutique Concierge, I need assistance locating my order #${searchedNumber || orderQuery}.`
+                      `Hello Mariama Concierge, I need assistance locating my order #${searchedNumber || orderQuery}.`
                     )}`}
                     target="_blank"
                     rel="noreferrer"
@@ -388,7 +388,7 @@ export default function TrackOrder() {
               <div className="order-header-row">
                 <div>
                   <div className="order-number-title">
-                    <img src="/mero-logo-256.png" alt="Mero Boutique" className="track-order-logo-img" />
+                    <img src="/mero-logo-256.png" alt="Mariama" className="track-order-logo-img" />
                     <h2>#{order.order_number}</h2>
                   </div>
                   {/* Zero-pill metadata row */}
@@ -597,7 +597,7 @@ export default function TrackOrder() {
                     <div className="concierge-actions-group">
                       <a
                         href={`https://wa.me/?text=${encodeURIComponent(
-                          `Hello Mero Boutique! I am following up on order #${order.order_number} for delivery to ${order.governorate}.`
+                          `Hello Mariama! I am following up on order #${order.order_number} for delivery to ${order.governorate}.`
                         )}`}
                         target="_blank"
                         rel="noreferrer"
@@ -663,7 +663,7 @@ export default function TrackOrder() {
                 <h2>{isAr ? 'كيف تتابعين مسار قطعتكِ؟' : 'How Order Tracking Works'}</h2>
                 <p>
                   {isAr
-                    ? 'في ميرو بوتيك، نولي كل قطعة رعاية استثنائية من غرزة الإبرة إلى التسليم.'
+                    ? 'في مريمة، نولي كل قطعة رعاية استثنائية من غرزة الإبرة إلى التسليم.'
                     : 'Every silhouette receives bespoke artisan dedication, from the first thread to doorstep presentation.'}
                 </p>
               </div>

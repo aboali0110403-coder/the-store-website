@@ -33,7 +33,7 @@ export default function Home() {
         <div className="atelier-opening-scrim" aria-hidden="true" />
         <div className="atelier-opening-copy">
           <h1>{isAr ? 'قطعة تُصنع بيد واحدة، غرزةً بعد غرزة.' : 'One maker. Each piece, stitch by stitch.'}</h1>
-          <p className="atelier-origin atelier-location">{isAr ? 'ميرو بوتيك · المنصورة، مصر' : 'Mero Boutique · Mansoura, Egypt'}</p>
+          <p className="atelier-origin atelier-location">{isAr ? 'مريمة · المنصورة، مصر' : 'Mariama · Mansoura, Egypt'}</p>
           <p className="atelier-intro">
             {isAr
               ? 'مشغل مستقل تديره مؤسسته؛ تصمم وتخيط وتطرز بنفسها. نحو خمس سنوات من العمل والتواصل المباشر مع عميلاتها.'
@@ -110,7 +110,7 @@ export default function Home() {
       <section className="atelier-catalog" aria-labelledby="atelier-catalog-title">
         <div className="atelier-section-heading atelier-section-heading-center">
           <div>
-            <h2 id="atelier-catalog-title">{isAr ? 'من مشغل ميرو' : 'From the Mero atelier'}</h2>
+            <h2 id="atelier-catalog-title">{isAr ? 'من مشغل مريمة' : 'From the Mariama atelier'}</h2>
           </div>
           <Link className="text-link" href="/shop">{isAr ? 'افتحي المتجر' : 'Open the shop'} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>

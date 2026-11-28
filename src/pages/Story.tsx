@@ -19,8 +19,8 @@ export default function Story() {
             <h1>{isAr ? 'حيث يلتقي التراث بالفخامة العصرية' : 'Heritage Woven Into Modern Poise'}</h1>
             <p>
               {isAr
-                ? 'تأسست ميرو بوتيك في القاهرة انطلاقاً من إيمان عميق بأن التطريز اليدوي المصري ليس مجرد زخرفة، بل هو تاريخ حي وفن راقٍ يستحق أن يتجدد ليواكب أناقة المرأة اليوم.'
-                : 'Founded in Cairo, Mero Boutique was born out of an enduring reverence for Egyptian embroidery—reimagining heirloom motifs as wearable contemporary art.'}
+                ? 'تأسست مريمة في القاهرة انطلاقاً من إيمان عميق بأن التطريز اليدوي المصري ليس مجرد زخرفة، بل هو تاريخ حي وفن راقٍ يستحق أن يتجدد ليواكب أناقة المرأة اليوم.'
+                : 'Founded in Cairo, Mariama was born out of an enduring reverence for Egyptian embroidery—reimagining heirloom motifs as wearable contemporary art.'}
             </p>
           </div>
           <img src="/products/embroidered-dress.svg" alt="Artisan atelier work" />
@@ -39,8 +39,8 @@ export default function Story() {
           <div className="story-intro-copy">
             <p>
               {isAr
-                ? 'نرفض تماماً الأقمشة البلاستيكية المصنعة رخيصة التكلفة؛ فكل قطعة في ميرو تُحاك من الكتان الطبيعي المصري، أو حرير التوت البري، أو فوال قطن الجيزة النقي ذي التيلة الطويلة.'
-                : 'We consciously avoid synthetic fast-fashion blends. Every Mero creation begins with raw Egyptian flax linen, pure silk-linen, or featherlight Giza cotton voile.'}
+                ? 'نرفض تماماً الأقمشة البلاستيكية المصنعة رخيصة التكلفة؛ فكل قطعة في مريمة تُحاك من الكتان الطبيعي المصري، أو حرير التوت البري، أو فوال قطن الجيزة النقي ذي التيلة الطويلة.'
+                : 'We consciously avoid synthetic fast-fashion blends. Every Mariama creation begins with raw Egyptian flax linen, pure silk-linen, or featherlight Giza cotton voile.'}
             </p>
             <p>
               {isAr
@@ -114,10 +114,10 @@ export default function Story() {
           <Sparkles size={24} className="text-[#c4a46d]" />
           <blockquote>
             {isAr
-              ? '«حين ترتدين قطعة من ميرو، فأنتِ لا ترتدين ثوباً فحسب، بل تحملين حكاية أصيلة سطرها حرفيون مصريون بشغف وإخلاص.»'
-              : '“When you wear a Mero silhouette, you don’t merely wear fashion—you wear living heritage woven with deep artisan dedication.”'}
+              ? '«حين ترتدين قطعة من مريمة، فأنتِ لا ترتدين ثوباً فحسب، بل تحملين حكاية أصيلة سطرها حرفيون مصريون بشغف وإخلاص.»'
+              : '“When you wear a Mariama silhouette, you don’t merely wear fashion—you wear living heritage woven with deep artisan dedication.”'}
           </blockquote>
-          <span>MERO BOUTIQUE · CAIRO ATELIER</span>
+          <span>MARIAMA · CAIRO ATELIER</span>
         </div>
       </section>
 

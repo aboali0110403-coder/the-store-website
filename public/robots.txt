@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /admin
 Disallow: /checkout
 
-Sitemap: https://mero-boutique.vercel.app/sitemap.xml
+Sitemap: https://mariama-atelier.vercel.app/sitemap.xml

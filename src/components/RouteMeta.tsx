@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useBoutique } from './SiteShell';
 
-const SITE = 'Mero Boutique';
-const ORIGIN = 'https://mero-boutique.vercel.app';
+const SITE = 'Mariama';
+const ORIGIN = 'https://mariama-atelier.vercel.app';
 
 type Meta = { en: string; ar: string; descEn?: string; descAr?: string; noindex?: boolean };
 

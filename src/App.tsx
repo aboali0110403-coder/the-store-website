@@ -20,7 +20,7 @@ function RouteLoadingFallback() {
     <div className="min-h-[50vh] flex items-center justify-center p-12 text-[#806f77] text-sm">
       <div className="flex flex-col items-center gap-3">
         <div className="w-6 h-6 border-2 border-[#49343f] border-t-transparent rounded-full animate-spin" />
-        <span className="font-serif italic">Mero Atelier…</span>
+        <span className="font-serif italic">Mariama Atelier…</span>
       </div>
     </div>
   );

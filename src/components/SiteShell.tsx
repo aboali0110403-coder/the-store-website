@@ -296,15 +296,14 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
             <Menu size={20} />
           </button>
 
-          <Link href="/" className="site-logo" aria-label="Mero Boutique Home">
+          <Link href="/" className="site-logo" aria-label="Mariama Home">
             <img
               src="/mero-logo-256.png"
-              alt="Mero Boutique"
+              alt="Mariama"
               className="site-logo-img"
             />
             <div className="wordmark">
-              <span>MERO</span>
-              <small>BOUTIQUE</small>
+              <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
             </div>
           </Link>
 
@@ -362,13 +361,12 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="site-logo">
                 <img
                   src="/mero-logo-256.png"
-                  alt="Mero Boutique"
+                  alt="Mariama"
                   className="site-logo-img"
                   style={{ height: '40px' }}
                 />
                 <span className="wordmark">
-                  <span>MERO</span>
-                  <small>BOUTIQUE</small>
+                  <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
                 </span>
               </Link>
               <button
@@ -413,7 +411,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
           <aside className="cart-drawer">
             <div className="drawer-header">
               <div>
-                <span className="eyebrow">{isAr ? 'ميرو / حقيبة التسوق' : 'MERO / SHOPPING BAG'}</span>
+                <span className="eyebrow">{isAr ? 'مريمة / حقيبة التسوق' : 'MARIAMA / SHOPPING BAG'}</span>
                 <h2>{isAr ? 'حقيبتك' : 'Your Bag'}</h2>
               </div>
               <button
@@ -524,16 +522,15 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
       <footer className="site-footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <Link href="/" className="footer-logo-wrap" aria-label="Mero Boutique Home">
+            <Link href="/" className="footer-logo-wrap" aria-label="Mariama Home">
               <img
                 src="/mero-logo-256.png"
-                alt="Mero Boutique"
+                alt="Mariama"
                 className="footer-logo-img"
               />
             </Link>
             <div className="wordmark wordmark-light">
-              <span>MERO</span>
-              <small>BOUTIQUE</small>
+              <span>{isAr ? 'مريمة' : 'MARIAMA'}</span>
             </div>
             <p>
               {isAr
@@ -582,7 +579,7 @@ const SiteShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         <div className="footer-bottom">
           <span>
-            © {new Date().getFullYear()} Mero Boutique. {isAr ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
+            © {new Date().getFullYear()} Mariama. {isAr ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
           </span>
           <span>{isAr ? 'تصميم وخياطة وتطريز يدوي في المنصورة، مصر' : 'Designed and made by its founder in Mansoura, Egypt'}</span>
         </div>

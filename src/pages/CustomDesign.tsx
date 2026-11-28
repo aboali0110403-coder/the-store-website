@@ -244,11 +244,11 @@ export default function CustomDesign() {
           <div className="confirmation-mark">
             <CheckCircle2 size={32} />
           </div>
-          <span className="eyebrow">MERO ATELIER · BESPOKE</span>
+          <span className="eyebrow">MARIAMA ATELIER · BESPOKE</span>
           <h1>{isAr ? 'تم تسجيل طلب التصميم الخاص' : 'Bespoke Request Received'}</h1>
           <p>
             {isAr
-              ? `شكراً لكِ يا ${success.name}، تم إرسال تفاصيل تصميمك إلى ورشة ميرو بوتيك. سيتواصل معكِ مصممنا الرئيسي لمراجعة درجات الأقمشة ومخطط التطريز وتقدير التكلفة.`
+              ? `شكراً لكِ يا ${success.name}، تم إرسال تفاصيل تصميمك إلى ورشة مريمة. سيتواصل معكِ مصممنا الرئيسي لمراجعة درجات الأقمشة ومخطط التطريز وتقدير التكلفة.`
               : `Thank you ${success.name}. Your bespoke inquiry is now with our chief artisan. We will review your vision and reach out to discuss fabric swatches, thread palette, and schedule.`}
           </p>
 
@@ -573,7 +573,7 @@ export default function CustomDesign() {
             <h2>{isAr ? 'كيف نحقق رؤيتك؟' : 'How We Work'}</h2>
             <p>
               {isAr
-                ? 'في ميرو، نعتبر التصميم الخاص رحلة إبداعية مشتركة نحرص فيها على كل غرزة ولمسة جمالية.'
+                ? 'في مريمة، نعتبر التصميم الخاص رحلة إبداعية مشتركة نحرص فيها على كل غرزة ولمسة جمالية.'
                 : 'Every bespoke commission receives dedicated one-on-one atelier oversight.'}
             </p>
 
